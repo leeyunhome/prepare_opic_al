@@ -19,6 +19,7 @@
     <nav class="navtabs">
       <button class="navbtn active" data-view="dashboard">Dashboard</button>
       <button class="navbtn" data-view="training">Training</button>
+      <button class="navbtn" data-view="book">📚 Book</button>
       <button class="navbtn" data-view="profile">Profile</button>
       <button class="navbtn icon" data-view="settings" title="Settings">⚙️</button>
     </nav>
@@ -29,6 +30,7 @@
     <section class="view" id="view-dashboard">
       <div class="hero">
         <h2>오늘은 <span id="hero-day">Day 1</span> — <span id="hero-topic">기본기 및 필러 장착</span></h2>
+        <p id="hero-book" class="book-chip"></p>
         <p id="hero-desc">완벽한 문장을 만들려는 강박을 버립니다. 결론(MP)을 먼저 뱉고 공백을 필러로 메우는 연습.</p>
         <button id="start-today-btn" class="btn primary big">▶ 오늘 훈련 시작</button>
       </div>
@@ -81,6 +83,37 @@
           <span id="status" class="status muted"></span>
           <span id="timer" class="timer muted"></span>
         </div>
+      </div>
+    </section>
+
+    <!-- ============= BOOK RULES ============= -->
+    <section class="view hidden" id="view-book">
+      <h2>📚 오픽노잼 IM 시리즈 — 핵심 룰</h2>
+      <p class="muted" id="book-meta"></p>
+
+      <div class="card">
+        <h3>꼭 지켜야 할 7가지 규칙 <span class="muted" style="font-size:12px">· p.058</span></h3>
+        <ol class="rule-list" id="seven-rules"></ol>
+      </div>
+
+      <div class="card">
+        <h3>MP 공식 — What + Feeling + Why</h3>
+        <div id="mp-formula"></div>
+      </div>
+
+      <div class="card">
+        <h3>필러 (Part 1 · Ch 02-03)</h3>
+        <div id="filler-block"></div>
+      </div>
+
+      <div class="card">
+        <h3>카테고리 전략</h3>
+        <div id="category-block"></div>
+      </div>
+
+      <div class="card">
+        <h3>학생 실수 → 책 권장 교정 패턴</h3>
+        <ol class="rule-list" id="coaching-patterns"></ol>
       </div>
     </section>
 

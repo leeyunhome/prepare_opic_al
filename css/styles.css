@@ -216,6 +216,80 @@ main {
 }
 .modal-body h2 { margin-top: 0; }
 
+/* ---------- book chip on hero & cards ---------- */
+.book-chip {
+  display: inline-block;
+  font-size: 12px;
+  color: var(--accent);
+  background: rgba(106, 166, 255, 0.10);
+  border: 1px solid rgba(106, 166, 255, 0.25);
+  padding: 4px 10px;
+  border-radius: 12px;
+  margin: 0 0 14px;
+}
+.day-card .day-book {
+  font-size: 11px;
+  color: var(--accent);
+  margin: 4px 0 6px;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ---------- book view ---------- */
+#view-book .card { padding: 20px; }
+#view-book code {
+  background: rgba(106, 166, 255, 0.10);
+  color: #c8dcff;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 0.92em;
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+}
+.rule-list { padding-left: 22px; margin: 0; display: flex; flex-direction: column; gap: 14px; }
+.rule-list > li { line-height: 1.55; }
+.rule-head { font-weight: 600; margin-bottom: 4px; }
+.rule-examples { margin: 4px 0 0; padding-left: 20px; color: var(--muted); }
+.rule-examples li { margin: 3px 0; }
+
+.mp-steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.mp-step {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+}
+.mp-tag {
+  display: inline-block;
+  background: var(--accent);
+  color: #0a1424;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.mp-ko { font-size: 13px; margin-bottom: 6px; }
+.mp-en { font-size: 12px; }
+
+.cat {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+  margin-bottom: 12px;
+  line-height: 1.55;
+}
+.cat-head { font-weight: 600; margin-bottom: 8px; font-size: 15px; }
+.cat ul { margin: 4px 0 8px; padding-left: 20px; }
+
 /* ---------- responsive ---------- */
 @media (max-width: 700px) {
   .topbar { padding: 12px 14px; }

@@ -5,6 +5,7 @@ import { loadProfile, saveProfile, resetProfile, DEFAULT_PROFILE } from './profi
 import { buildSystemPrompt, openingMessage } from './prompts.js';
 import { generate, testKey, GeminiError } from './gemini.js';
 import { Recognizer, tts, ttsClean } from './speech.js';
+import { BOOK, SEVEN_RULES, MP_FORMULA, FILLERS, CATEGORY_STRATEGY, COACHING_PATTERNS } from './bookRules.js';
 
 // ---------- state ----------
 const state = {
@@ -37,9 +38,18 @@ const dom = {
   // dashboard
   heroDay: $('#hero-day'),
   heroTopic: $('#hero-topic'),
+  heroBook: $('#hero-book'),
   heroDesc: $('#hero-desc'),
   startTodayBtn: $('#start-today-btn'),
   dayGrid: $('#day-grid'),
+
+  // book
+  bookMeta: $('#book-meta'),
+  sevenRules: $('#seven-rules'),
+  mpFormula: $('#mp-formula'),
+  fillerBlock: $('#filler-block'),
+  categoryBlock: $('#category-block'),
+  coachingPatterns: $('#coaching-patterns'),
 
   // training
   trainTitle: $('#train-title'),
@@ -102,6 +112,7 @@ function renderDashboard() {
   const today = currentDay();
   dom.heroDay.textContent = `Day ${today.n}`;
   dom.heroTopic.textContent = today.topic;
+  if (dom.heroBook) dom.heroBook.textContent = '📖 ' + today.book;
   dom.heroDesc.textContent = today.desc;
 
   dom.dayGrid.innerHTML = '';
@@ -118,6 +129,7 @@ function renderDashboard() {
         <span class="day-date">${d.date.slice(5)}</span>
       </div>
       <div class="day-title">${escapeHTML(d.topic)} <span class="done-badge">✓ done</span></div>
+      <div class="day-book">${escapeHTML(d.book)}</div>
       <div class="day-desc">${escapeHTML(d.desc)}</div>
     `;
     card.addEventListener('click', () => {
@@ -130,6 +142,64 @@ function renderDashboard() {
     });
     dom.dayGrid.appendChild(card);
   }
+}
+
+// ---------- book rules view ----------
+function renderBookView() {
+  if (!dom.bookMeta) return;
+  dom.bookMeta.textContent = `${BOOK.title} · ${BOOK.author} — ${BOOK.scope}`;
+
+  dom.sevenRules.innerHTML = SEVEN_RULES.map((r) => `
+    <li>
+      <div class="rule-head">규칙 ${r.n}. ${escapeHTML(r.ko)}</div>
+      <ul class="rule-examples">
+        ${r.examples.map((e) => `<li><code>${escapeHTML(e)}</code></li>`).join('')}
+      </ul>
+    </li>
+  `).join('');
+
+  dom.mpFormula.innerHTML = `
+    <div class="mp-steps">
+      ${MP_FORMULA.steps.map((s) => `
+        <div class="mp-step">
+          <span class="mp-tag">${escapeHTML(s.tag)}</span>
+          <div class="mp-ko">${escapeHTML(s.ko)}</div>
+          <div class="mp-en"><code>${escapeHTML(s.en_example)}</code></div>
+        </div>
+      `).join('')}
+    </div>
+    <p><b>20초 룰:</b> ${escapeHTML(MP_FORMULA.rule_20s)}</p>
+    <p>${escapeHTML(MP_FORMULA.general_to_singular)}</p>
+  `;
+
+  dom.fillerBlock.innerHTML = `
+    <p><b>기본 필러:</b> ${FILLERS.basic.map((f) => `<code>${escapeHTML(f)}</code>`).join(' · ')}</p>
+    <p><b>Advanced 콤보:</b> ${FILLERS.advanced_combos.map((f) => `<code>${escapeHTML(f)}</code>`).join(' / ')}</p>
+    <p>${escapeHTML(FILLERS.guess_what)}</p>
+    <p class="muted">${escapeHTML(FILLERS.opening_combo_rule)}</p>
+    <ul class="rule-examples">${FILLERS.opening_examples.map((e) => `<li><code>${escapeHTML(e)}</code></li>`).join('')}</ul>
+    <p class="muted">⚠ ${escapeHTML(FILLERS.ttl_warning)}</p>
+  `;
+
+  dom.categoryBlock.innerHTML = Object.values(CATEGORY_STRATEGY).map((c) => `
+    <div class="cat">
+      <div class="cat-head">${escapeHTML(c.name)} <span class="muted">· ${escapeHTML(c.time)} · ${escapeHTML(c.diff)}</span></div>
+      <div><b>구조:</b> ${c.structure.map(escapeHTML).join(' → ')}</div>
+      <div><b>핵심 패턴:</b></div>
+      <ul class="rule-examples">${c.key_phrases.map((p) => `<li><code>${escapeHTML(p)}</code></li>`).join('')}</ul>
+      ${c.tense ? `<div><b>시제:</b> ${escapeHTML(c.tense)}</div>` : ''}
+      ${c.extras ? `<div><b>Extras:</b> ${escapeHTML(c.extras)}</div>` : ''}
+      ${c.pitfalls ? `<div><b>함정:</b><ul>${c.pitfalls.map((p) => `<li>${escapeHTML(p)}</li>`).join('')}</ul></div>` : ''}
+    </div>
+  `).join('');
+
+  dom.coachingPatterns.innerHTML = COACHING_PATTERNS.map((p) => `
+    <li>
+      <div class="rule-head">${escapeHTML(p.when)}</div>
+      <div class="muted">📖 ${escapeHTML(p.book_quote)}</div>
+      <div>💡 <code>${escapeHTML(p.rewrite)}</code></div>
+    </li>
+  `).join('');
 }
 
 dom.startTodayBtn.addEventListener('click', () => {
@@ -512,6 +582,7 @@ function requireKeyThen(fn) {
 // ---------- boot ----------
 fillProfileForm();
 renderDashboard();
+renderBookView();
 if (!state.apiKey) {
   // Friendly first-time experience: land on settings.
   showView('settings');
