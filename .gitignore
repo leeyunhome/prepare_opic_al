@@ -1,0 +1,18 @@
+# Personal reference materials (not for public repo)
+references/
+
+# Claude Code harness internals
+.claude/
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+.vscode/
+.idea/
+
+# Node (in case anyone adds tooling later)
+node_modules/
+.cache/
+dist/

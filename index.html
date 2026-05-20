@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ava — OPIc Sparring Partner</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22><text y=%2214%22 font-size=%2214%22>🎙️</text></svg>" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">🎙️</span>
+      <div>
+        <h1>Ava</h1>
+        <span class="subtitle">OPIc Sparring Partner · 5/30 D-<span id="dday">10</span></span>
+      </div>
+    </div>
+    <nav class="navtabs">
+      <button class="navbtn active" data-view="dashboard">Dashboard</button>
+      <button class="navbtn" data-view="training">Training</button>
+      <button class="navbtn" data-view="profile">Profile</button>
+      <button class="navbtn icon" data-view="settings" title="Settings">⚙️</button>
+    </nav>
+  </header>
+
+  <main id="app">
+    <!-- ============= DASHBOARD ============= -->
+    <section class="view" id="view-dashboard">
+      <div class="hero">
+        <h2>오늘은 <span id="hero-day">Day 1</span> — <span id="hero-topic">기본기 및 필러 장착</span></h2>
+        <p id="hero-desc">완벽한 문장을 만들려는 강박을 버립니다. 결론(MP)을 먼저 뱉고 공백을 필러로 메우는 연습.</p>
+        <button id="start-today-btn" class="btn primary big">▶ 오늘 훈련 시작</button>
+      </div>
+
+      <h3 class="section-title">10일 커리큘럼</h3>
+      <div class="day-grid" id="day-grid"></div>
+
+      <div class="exam-card">
+        <h3>📌 시험 정보</h3>
+        <ul>
+          <li><b>평가일시</b> · 2026년 5월 30일(토) 14:20</li>
+          <li><b>평가센터</b> · 대학로공인시험센터 (2층)</li>
+          <li><b>입실마감</b> · <span class="warn">14:10</span> (10분 전, 지각 시 입실 불가)</li>
+          <li><b>지참물</b> · 규정 신분증 (주민증/면허증/유효 여권/공무원증 중 1)</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ============= TRAINING ============= -->
+    <section class="view hidden" id="view-training">
+      <div class="training-header">
+        <div>
+          <h2 id="train-title">Day 1 — 기본기 및 필러 장착</h2>
+          <p id="train-rule" class="muted"></p>
+        </div>
+        <div class="mode-switch">
+          <label>모드</label>
+          <select id="train-mode">
+            <option value="active_recall">Active Recall</option>
+            <option value="roleplay">Role-play</option>
+            <option value="description">Description</option>
+            <option value="past_story">Past Story</option>
+            <option value="mock_exam">Mock Exam</option>
+          </select>
+          <button id="train-reset-btn" class="btn ghost small" title="대화 초기화">↻</button>
+        </div>
+      </div>
+
+      <div class="chat" id="chat"></div>
+
+      <div class="composer">
+        <div class="hints" id="hints"></div>
+        <div class="composer-row">
+          <button id="mic-btn" class="btn mic" title="말하기 (Space)">🎤</button>
+          <textarea id="text-input" rows="1" placeholder="답변을 타이핑하거나 마이크 버튼으로 말하세요 (Shift+Enter 줄바꿈)"></textarea>
+          <button id="send-btn" class="btn primary">Send</button>
+        </div>
+        <div class="composer-footer">
+          <label class="checkbox"><input type="checkbox" id="tts-toggle" checked /> AI 음성 출력</label>
+          <span id="status" class="status muted"></span>
+          <span id="timer" class="timer muted"></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============= PROFILE ============= -->
+    <section class="view hidden" id="view-profile">
+      <h2>나의 TMI 프로필</h2>
+      <p class="muted">AI가 너의 진짜 이야기로 질문을 만들도록 — 자세할수록 좋아.</p>
+      <form id="profile-form" class="form">
+        <label>이름 (영어, AI가 부를 이름)
+          <input name="name" placeholder="예: Lee, Yunho" />
+        </label>
+        <label>직업 · 업무
+          <textarea name="job" rows="3" placeholder="예: 소프트웨어 엔지니어. C/C++ 주력, Python·JS로 자동화 도구 작업..."></textarea>
+        </label>
+        <label>집 · 동네
+          <textarea name="home" rows="3" placeholder="예: 올해 3월 결혼한 신혼. 방 3개, 거실, 넓은 베란다. 집 근처 개천과 숲..."></textarea>
+        </label>
+        <label>출퇴근 · 통근
+          <textarea name="commute" rows="2" placeholder="예: 혜화역 4호선 → 동대문역사문화공원 5호선 → 여의도 9호선 → 증미역..."></textarea>
+        </label>
+        <label>취미 · 운동 · 미디어
+          <textarea name="hobbies" rows="3" placeholder="예: 헬스(프리웨이트/스미스머신), Netflix 일본 애니, 액션 영화..."></textarea>
+        </label>
+        <label>식단 · 루틴
+          <textarea name="routine" rows="3" placeholder="예: 아침 MCT+올리브오일 커피, 그릭요거트+블루베리, 발사믹 식초+호밀빵 (저속노화)..."></textarea>
+        </label>
+        <label>스토리 소스 (영화/책/일화)
+          <textarea name="stories" rows="3" placeholder="예: '겨울왕국' Frozen, '커런트 워' The Current War, '엘라 벨라 빙고' Ella Bella Bingo..."></textarea>
+        </label>
+        <label>주의: AI가 피해야 할 표현 (로봇 톤 잡기)
+          <textarea name="avoid" rows="2" placeholder="예: textbook 톤, 너무 긴 부사절..."></textarea>
+        </label>
+        <div class="form-actions">
+          <button type="submit" class="btn primary">저장</button>
+          <button type="button" id="profile-reset-btn" class="btn ghost">기본값으로 초기화</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- ============= SETTINGS ============= -->
+    <section class="view hidden" id="view-settings">
+      <h2>설정</h2>
+
+      <div class="card">
+        <h3>Gemini API 키</h3>
+        <p class="muted">
+          <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a>에서 발급.
+          키는 이 브라우저의 localStorage에만 저장되며 어디에도 전송되지 않습니다.
+        </p>
+        <div class="input-row">
+          <input type="password" id="api-key" placeholder="AIza..." autocomplete="off" />
+          <button id="api-key-save" class="btn primary">저장</button>
+          <button id="api-key-test" class="btn ghost">연결 테스트</button>
+        </div>
+        <label class="inline-label">모델
+          <select id="model-select">
+            <option value="gemini-2.0-flash">gemini-2.0-flash (빠름, 권장)</option>
+            <option value="gemini-2.0-flash-exp">gemini-2.0-flash-exp</option>
+            <option value="gemini-1.5-flash">gemini-1.5-flash</option>
+            <option value="gemini-1.5-pro">gemini-1.5-pro (정확, 느림)</option>
+          </select>
+        </label>
+        <p id="api-status" class="status muted"></p>
+      </div>
+
+      <div class="card">
+        <h3>음성</h3>
+        <label class="inline-label">STT 언어
+          <select id="stt-lang">
+            <option value="en-US">English (US)</option>
+            <option value="en-GB">English (UK)</option>
+            <option value="en-AU">English (AU)</option>
+          </select>
+        </label>
+        <label class="inline-label">TTS 목소리
+          <select id="tts-voice"></select>
+        </label>
+        <label class="inline-label">TTS 속도 <span id="tts-rate-val">1.0</span>
+          <input type="range" id="tts-rate" min="0.6" max="1.4" step="0.05" value="1.0" />
+        </label>
+        <button id="tts-test" class="btn ghost">음성 테스트</button>
+      </div>
+
+      <div class="card">
+        <h3>데이터</h3>
+        <p class="muted">대화 기록과 진행 상황은 브라우저에 저장됩니다.</p>
+        <button id="export-btn" class="btn ghost">대화 내보내기 (JSON)</button>
+        <button id="clear-btn" class="btn danger">모든 데이터 삭제</button>
+      </div>
+    </section>
+  </main>
+
+  <!-- API 키 필요 안내 모달 -->
+  <div class="modal hidden" id="key-modal">
+    <div class="modal-body">
+      <h2>API 키가 필요해요</h2>
+      <p>Ava와 대화하려면 Gemini API 키가 필요합니다. ⚙️ 설정 탭에서 키를 입력해주세요.</p>
+      <button class="btn primary" id="key-modal-go">설정으로 이동</button>
+    </div>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
