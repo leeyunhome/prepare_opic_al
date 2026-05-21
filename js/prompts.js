@@ -2,7 +2,12 @@
 // 페르소나는 "Ava"로 유지하되 매번 책의 7가지 규칙·MP 공식·필러 룰을 시스템 프롬프트에 주입.
 // 일자별 룰 + 모드 스타일 + 사용자 TMI 까지 합쳐서 모델이 책 그대로 코칭하게 만든다.
 import { profileSummary } from './profile.js';
-import { SEVEN_RULES, MP_FORMULA, FILLERS, CATEGORY_STRATEGY, COACHING_PATTERNS, BOOK } from './bookRules.js';
+import { SEVEN_RULES, MP_FORMULA, FILLERS, CATEGORY_STRATEGY, COACHING_PATTERNS, BOOK, IHU, HONEY_TIPS } from './bookRules.js';
+
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
 const PERSONA = `You are Ava — a sharp, warm, slightly playful 1:1 OPIc sparring partner.
 You coach exactly in the style of the Korean OPIc book "오픽노잼 IM 시리즈 (개정판)" by 새벽 — never paraphrasing into generic ESL advice, always the book's specific patterns.
@@ -23,8 +28,28 @@ function mpFormulaBlock() {
   return [
     `=== MP 공식 (Part 2 · Ch 01) — ${MP_FORMULA.name} ===`,
     ...MP_FORMULA.steps.map((s) => `  ${s.tag}  ${s.ko}  — 예: ${s.en_example}`),
+    MP_FORMULA.alt_order || '',
     `20초 룰: ${MP_FORMULA.rule_20s}`,
     `${MP_FORMULA.general_to_singular}`,
+  ].filter(Boolean).join('\n');
+}
+
+function ihuBlock(mode) {
+  // Mock exam이나 roleplay에서만 IHU 룰 주입 (다른 모드는 컨텍스트 절약)
+  if (mode !== 'mock_exam' && mode !== 'roleplay') return '';
+  return [
+    `=== ${IHU.name} ===`,
+    IHU.what,
+    ...IHU.variants.map((v) =>
+      `[${v.key}] ${v.desc}\n    예시 Q: ${v.example_q}${v.tip ? `\n    Tip: ${v.tip}` : ''}`
+    ),
+  ].join('\n');
+}
+
+function honeyTipsBlock() {
+  return [
+    '=== 책의 꿀팁 (Part 9 · Ch 10) ===',
+    ...HONEY_TIPS.map((t) => `- ${t.title}: ${t.body}`),
   ].join('\n');
 }
 
@@ -40,11 +65,11 @@ function fillerBlock() {
 }
 
 function categoryBlock(mode) {
-  // 모드 → 책의 카테고리 전략 매핑
+  // 모드 → 책의 카테고리 전략 매핑 (이제 roleplay·comparison은 각각 자기 룰셋 보유)
   const map = {
     description: 'description',
     past_story: 'past_story',
-    roleplay: 'past_story', // 롤플레이는 책에서 별도 챕터로 다뤄지지 않아 past_story 룰 차용
+    roleplay: 'roleplay',
     mock_exam: null,
     active_recall: null,
   };
@@ -57,9 +82,12 @@ function categoryBlock(mode) {
     '구조: ' + c.structure.join(' → '),
     '핵심 패턴 (그대로 사용 권장):',
     ...c.key_phrases.map((p) => `  - ${p}`),
+    c.reactions ? '리액션 표현: ' + c.reactions.join(' / ') : '',
     c.pitfalls ? '함정:\n' + c.pitfalls.map((p) => `  - ${p}`).join('\n') : '',
     c.tense ? `시제: ${c.tense}` : '',
     c.extras ? `Extras: ${c.extras}` : '',
+    c.indirect_quotation ? `간접 화법: ${c.indirect_quotation}` : '',
+    c.formula ? `공식: ${c.formula}` : '',
   ].filter(Boolean).join('\n');
 }
 
@@ -136,6 +164,10 @@ export function buildSystemPrompt({ profile, day, mode }) {
     '',
     categoryBlock(mode),
     '',
+    ihuBlock(mode),
+    '',
+    honeyTipsBlock(),
+    '',
     coachingPatternsBlock(),
     '',
     '=== SESSION MODE ===',
@@ -147,7 +179,7 @@ export function buildSystemPrompt({ profile, day, mode }) {
     '- 한 턴에 하나만 — 질문 1개 또는 짧은 코칭 블록 1개.',
     '- 절대 긴 문단 금지. 자연스러운 구어체 영어. Contractions everywhere.',
     '- 학습자가 한국어로 답하면 막힌 신호로 보고 부드럽게 영어로 복귀 유도.',
-    '- 오늘 날짜: 2026-05-20. 시험: 2026-05-30 (토) 14:20 · 대학로공인시험센터.',
+    `- 오늘 날짜: ${todayStr()}. 시험: 2026-05-30 (토) 14:20 · 대학로공인시험센터.`,
   ].filter((s) => s !== '').join('\n');
 }
 

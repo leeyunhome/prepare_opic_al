@@ -5,7 +5,7 @@ import { loadProfile, saveProfile, resetProfile, DEFAULT_PROFILE } from './profi
 import { buildSystemPrompt, openingMessage } from './prompts.js';
 import { generate, testKey, GeminiError } from './gemini.js';
 import { Recognizer, tts, ttsClean } from './speech.js';
-import { BOOK, SEVEN_RULES, MP_FORMULA, FILLERS, CATEGORY_STRATEGY, COACHING_PATTERNS } from './bookRules.js';
+import { BOOK, SEVEN_RULES, MP_FORMULA, FILLERS, CATEGORY_STRATEGY, COACHING_PATTERNS, IHU, HONEY_TIPS, OPENERS, TOPIC_VOCAB } from './bookRules.js';
 
 // ---------- state ----------
 const state = {
@@ -49,6 +49,10 @@ const dom = {
   mpFormula: $('#mp-formula'),
   fillerBlock: $('#filler-block'),
   categoryBlock: $('#category-block'),
+  ihuBlock: $('#ihu-block'),
+  honeyTips: $('#honey-tips'),
+  openersBlock: $('#openers-block'),
+  vocabBlock: $('#vocab-block'),
   coachingPatterns: $('#coaching-patterns'),
 
   // training
@@ -199,6 +203,39 @@ function renderBookView() {
       <div class="muted">📖 ${escapeHTML(p.book_quote)}</div>
       <div>💡 <code>${escapeHTML(p.rewrite)}</code></div>
     </li>
+  `).join('');
+
+  dom.ihuBlock.innerHTML = `
+    <p class="muted">${escapeHTML(IHU.what)}</p>
+    ${IHU.variants.map((v) => `
+      <div class="cat">
+        <div class="cat-head">${escapeHTML(v.key)}</div>
+        <div>${escapeHTML(v.desc)}</div>
+        <div class="muted" style="margin-top:6px">예시 Q: <code>${escapeHTML(v.example_q)}</code></div>
+        ${v.tip ? `<div class="muted" style="margin-top:4px">💡 ${escapeHTML(v.tip)}</div>` : ''}
+      </div>
+    `).join('')}
+  `;
+
+  dom.honeyTips.innerHTML = HONEY_TIPS.map((t) => `
+    <div class="cat">
+      <div class="cat-head">${escapeHTML(t.title)}</div>
+      <div>${escapeHTML(t.body)}</div>
+    </div>
+  `).join('');
+
+  dom.openersBlock.innerHTML = Object.entries(OPENERS).map(([k, items]) => `
+    <div class="cat">
+      <div class="cat-head">${escapeHTML(k)}</div>
+      <ul class="rule-examples">${items.map((p) => `<li><code>${escapeHTML(p)}</code></li>`).join('')}</ul>
+    </div>
+  `).join('');
+
+  dom.vocabBlock.innerHTML = Object.entries(TOPIC_VOCAB).map(([k, items]) => `
+    <div class="cat">
+      <div class="cat-head">${escapeHTML(k)}</div>
+      <ul class="rule-examples">${items.map((p) => `<li>${escapeHTML(p)}</li>`).join('')}</ul>
+    </div>
   `).join('');
 }
 
