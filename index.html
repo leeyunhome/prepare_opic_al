@@ -221,6 +221,13 @@
           <input type="range" id="tts-rate" min="0.6" max="1.4" step="0.05" value="1.0" />
         </label>
         <button id="tts-test" class="btn ghost">음성 테스트</button>
+
+        <hr style="border:0;border-top:1px solid var(--line);margin:14px 0" />
+        <label class="checkbox"><input type="checkbox" id="auto-send" /> 말이 끝나면 자동 전송 (무음 감지)</label>
+        <label class="inline-label">무음 감지 시간 <span id="silence-ms-val">1.8</span>초
+          <input type="range" id="silence-ms" min="800" max="3500" step="100" value="1800" />
+        </label>
+        <p class="muted" style="font-size:12px;margin:4px 0 0">짧을수록 빠르게 전송 · 길수록 필러("uh… what am I trying to say")가 잘림 없이 끝까지 잡힘. OPIc 연습엔 1.6~2.2초 권장.</p>
       </div>
 
       <div class="card">

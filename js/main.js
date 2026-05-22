@@ -20,6 +20,8 @@ const state = {
   sttLang: storage.get('stt_lang', 'en-US'),
   ttsVoiceURI: storage.get('tts_voice', ''),
   ttsRate: storage.get('tts_rate', 1.0),
+  autoSend: storage.get('auto_send', true),
+  silenceMs: storage.get('silence_ms', 1800),
   recognizing: false,
   busy: false,
   doneDays: storage.get('done_days', []), // array of completed day numbers
@@ -87,6 +89,9 @@ const dom = {
   ttsRate: $('#tts-rate'),
   ttsRateVal: $('#tts-rate-val'),
   ttsTestBtn: $('#tts-test'),
+  autoSendToggle: $('#auto-send'),
+  silenceMs: $('#silence-ms'),
+  silenceMsVal: $('#silence-ms-val'),
   exportBtn: $('#export-btn'),
   clearBtn: $('#clear-btn'),
 
@@ -375,6 +380,7 @@ function ensureRecognizer() {
   if (recognizer) return recognizer;
   recognizer = new Recognizer({
     lang: state.sttLang,
+    silenceMs: state.autoSend ? state.silenceMs : 0,
     onPartial: (txt) => {
       dom.textInput.value = txt;
       autoResize(dom.textInput);
@@ -387,7 +393,16 @@ function ensureRecognizer() {
       setStatus(`STT error: ${err}`, 'error');
       stopRecognizing();
     },
-    onEnd: () => stopRecognizing(),
+    onEnd: () => {
+      // 자동(무음) 종료인지 수동 종료인지 구분.
+      const auto = recognizer?.silenceTriggered;
+      if (recognizer) recognizer.silenceTriggered = false;
+      stopRecognizing();
+      // 자동 종료였고 텍스트가 있으면 바로 전송.
+      if (auto && state.autoSend && dom.textInput.value.trim()) {
+        sendUserMessage(dom.textInput.value);
+      }
+    },
   });
   if (recognizer.unsupported) {
     setStatus('이 브라우저는 음성 인식을 지원하지 않습니다. Chrome을 사용하세요.', 'error');
@@ -400,13 +415,17 @@ function startRecognizing() {
   if (rec.unsupported) return;
   tts.cancel();          // 듣는 동안 AI 목소리는 꺼둠
   rec.setLang(state.sttLang);
+  rec.setSilenceMs(state.autoSend ? state.silenceMs : 0);
   try {
     rec.start();
     state.recognizing = true;
     dom.micBtn.classList.add('recording');
     dom.micBtn.textContent = '⏹';
     startTimer();
-    setStatus('🎙️ 듣는 중… 마이크를 한 번 더 누르면 멈춰요.', 'ok');
+    const hint = state.autoSend
+      ? `🎙️ 듣는 중… ${(state.silenceMs / 1000).toFixed(1)}초 무음 시 자동 전송.`
+      : '🎙️ 듣는 중… 마이크를 한 번 더 누르면 전송.';
+    setStatus(hint, 'ok');
   } catch (e) {
     setStatus('마이크를 시작할 수 없습니다: ' + e.message, 'error');
   }
@@ -562,6 +581,21 @@ dom.ttsRate.addEventListener('input', () => {
   state.ttsRate = +dom.ttsRate.value;
   dom.ttsRateVal.textContent = state.ttsRate.toFixed(2);
   storage.set('tts_rate', state.ttsRate);
+});
+
+dom.autoSendToggle.checked = state.autoSend;
+dom.silenceMs.value = state.silenceMs;
+dom.silenceMsVal.textContent = (state.silenceMs / 1000).toFixed(1);
+dom.autoSendToggle.addEventListener('change', () => {
+  state.autoSend = dom.autoSendToggle.checked;
+  storage.set('auto_send', state.autoSend);
+  if (recognizer) recognizer.setSilenceMs(state.autoSend ? state.silenceMs : 0);
+});
+dom.silenceMs.addEventListener('input', () => {
+  state.silenceMs = +dom.silenceMs.value;
+  dom.silenceMsVal.textContent = (state.silenceMs / 1000).toFixed(1);
+  storage.set('silence_ms', state.silenceMs);
+  if (recognizer && state.autoSend) recognizer.setSilenceMs(state.silenceMs);
 });
 dom.ttsTestBtn.addEventListener('click', () => {
   tts.speak("Hey, ready to spar? Let's go.", ttsOpts());
