@@ -290,6 +290,11 @@ main {
 .cat-head { font-weight: 600; margin-bottom: 8px; font-size: 15px; }
 .cat ul { margin: 4px 0 8px; padding-left: 20px; }
 
+/* GMP highlight (Current War 즉시 활용 인용구) */
+.gmp-highlight { border-color: var(--accent-2); background: linear-gradient(180deg, rgba(192,132,252,0.05), var(--bg)); }
+.gmp-quote { color: var(--accent); font-weight: 500; }
+.gmp-star { color: var(--accent-2); margin-left: 6px; font-size: 14px; }
+
 /* ---------- responsive ---------- */
 @media (max-width: 700px) {
   .topbar { padding: 12px 14px; }

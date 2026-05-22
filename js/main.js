@@ -6,6 +6,7 @@ import { buildSystemPrompt, openingMessage } from './prompts.js';
 import { generate, testKey, GeminiError } from './gemini.js';
 import { Recognizer, tts, ttsClean } from './speech.js';
 import { BOOK, SEVEN_RULES, MP_FORMULA, FILLERS, CATEGORY_STRATEGY, COACHING_PATTERNS, IHU, HONEY_TIPS, OPENERS, TOPIC_VOCAB } from './bookRules.js';
+import { GMP, CURRENT_WAR_EPISODES } from './gmpRules.js';
 
 // ---------- state ----------
 const state = {
@@ -53,6 +54,8 @@ const dom = {
   honeyTips: $('#honey-tips'),
   openersBlock: $('#openers-block'),
   vocabBlock: $('#vocab-block'),
+  gmpMeta: $('#gmp-meta'),
+  gmpEpisodes: $('#gmp-episodes'),
   coachingPatterns: $('#coaching-patterns'),
 
   // training
@@ -237,6 +240,26 @@ function renderBookView() {
       <ul class="rule-examples">${items.map((p) => `<li>${escapeHTML(p)}</li>`).join('')}</ul>
     </div>
   `).join('');
+
+  if (dom.gmpMeta) {
+    dom.gmpMeta.textContent = `${GMP.source} · ${GMP.period} · ${GMP.movie.title} (${GMP.movie.director})`;
+    dom.gmpEpisodes.innerHTML = CURRENT_WAR_EPISODES.map((ep) => `
+      <div class="cat${ep.highlight ? ' gmp-highlight' : ''}">
+        <div class="cat-head">
+          ${escapeHTML(ep.date)} ·
+          <span class="gmp-quote">"${escapeHTML(ep.quote)}"</span>
+          ${ep.highlight ? '<span class="gmp-star" title="OPIc 답변에 즉시 활용 가능">★</span>' : ''}
+        </div>
+        <div class="muted" style="margin:4px 0 6px">🎬 ${escapeHTML(ep.scene)} <span class="muted">— ${escapeHTML(ep.speaker)}</span></div>
+        <div><b>대사:</b></div>
+        <ul class="rule-examples">${ep.dialogue.map((d) => `<li><code>${escapeHTML(d)}</code></li>`).join('')}</ul>
+        <div style="margin-top:6px"><b>표현:</b></div>
+        <ul class="rule-examples">${ep.expressions.map((x) =>
+          `<li><code>${escapeHTML(x.en)}</code> — ${escapeHTML(x.ko)}<br><span class="muted">예: ${escapeHTML(x.usage)}</span></li>`
+        ).join('')}</ul>
+      </div>
+    `).join('');
+  }
 }
 
 dom.startTodayBtn.addEventListener('click', () => {

@@ -3,6 +3,7 @@
 // 일자별 룰 + 모드 스타일 + 사용자 TMI 까지 합쳐서 모델이 책 그대로 코칭하게 만든다.
 import { profileSummary } from './profile.js';
 import { SEVEN_RULES, MP_FORMULA, FILLERS, CATEGORY_STRATEGY, COACHING_PATTERNS, BOOK, IHU, HONEY_TIPS } from './bookRules.js';
+import { gmpPromptBlock } from './gmpRules.js';
 
 function todayStr() {
   const d = new Date();
@@ -169,6 +170,8 @@ export function buildSystemPrompt({ profile, day, mode }) {
     honeyTipsBlock(),
     '',
     coachingPatternsBlock(),
+    '',
+    gmpPromptBlock(),
     '',
     '=== SESSION MODE ===',
     modeStyle,

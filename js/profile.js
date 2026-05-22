@@ -21,6 +21,13 @@ export const DEFAULT_PROFILE = {
 퇴근 후 아내와 그날 있었던 일 얘기하며 주스나 커피 한 잔. 특별한 날엔 맥주.
 모던한 카페에서 쿠키 먹는 걸 좋아함.`,
   stories: `영화/스토리 소스: '겨울왕국 (Frozen)', '커런트 워 (The Current War)', '엘라 벨라 빙고 (Ella Bella Bingo)'.
+The Current War 깊이 학습 (굿모닝 팝스 2020년 6월). 인용해 쓸 수 있는 명대사:
+  · Edison: "I'm grateful for the offer, Mr. President. One device I shall never build is that which takes the life of another man."
+  · Mary (아내): "It's something he can't control." (워커홀릭 남편 묘사)
+  · Edison: "I don't have that luxury."
+  · 의사: "Nature will take its course." (Mary 와병)
+  · Edison: "I wouldn't have had as much fun, would I?" (회사에서 쫓겨난 뒤)
+  · Westinghouse: "What was the feeling in that moment?" (첫 전구가 켜진 순간)
 여행: 일본 (절·신사 방문), 이탈리아 신혼여행 (Italo 비즈니스석, Rigatoni al Cinghiale, Chianti 와인).
 이탈리아 응급 단어: Kit da cucito(반짇고리), Vescica(물집), Cerotto(반창고), Tabacchi.`,
   avoid: `textbook 톤, "Furthermore"·"Moreover" 같은 너무 격식체 부사절, 외운 듯한 긴 도입부.
