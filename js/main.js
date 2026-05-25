@@ -25,6 +25,9 @@ const state = {
   recognizing: false,
   busy: false,
   doneDays: storage.get('done_days', []), // array of completed day numbers
+  gdriveClientId: storage.get('gdrive_client_id', ''),
+  gdriveApiKey: storage.get('gdrive_api_key', ''),
+  gdriveAccessToken: '',
 };
 
 let recognizer = null;
@@ -100,10 +103,15 @@ const dom = {
   keyModalGo: $('#key-modal-go'),
   dropzone: $('#dropzone'),
   fileUploader: $('#file-uploader'),
-  uploadStatusCard: $('#upload-status-card'),
-  uploadedFilename: $('#uploaded-filename'),
-  uploadedFilesize: $('#uploaded-filesize'),
-  deleteUploadBtn: $('#delete-upload-btn'),
+  googleDriveBtn: $('#google-drive-btn'),
+  uploadedFilesContainer: $('#uploaded-files-container'),
+  
+  // Google drive credentials in settings
+  gdriveClientId: $('#gdrive-client-id'),
+  gdriveApiKey: $('#gdrive-api-key'),
+  gdriveKeysSave: $('#gdrive-keys-save'),
+  gdriveKeysClear: $('#gdrive-keys-clear'),
+  gdriveStatus: $('#gdrive-status'),
 };
 
 // ---------- nav ----------
@@ -548,17 +556,44 @@ dom.profileResetBtn.addEventListener('click', () => {
 
 // ---------- custom reference uploader ----------
 function renderCustomRefMaterial() {
-  const mat = storage.get('custom_ref_material', null);
-  if (mat && mat.text) {
-    dom.uploadedFilename.textContent = mat.name;
-    const kb = (mat.size / 1024).toFixed(1);
-    dom.uploadedFilesize.textContent = `${kb} KB · ${mat.text.length.toLocaleString()}자 로드됨`;
-    dom.uploadStatusCard.classList.remove('hidden');
-  } else {
-    dom.uploadStatusCard.classList.add('hidden');
-    dom.uploadedFilename.textContent = '';
-    dom.uploadedFilesize.textContent = '';
+  const list = storage.get('custom_ref_materials', []);
+  dom.uploadedFilesContainer.innerHTML = '';
+  
+  if (!list || !list.length) {
+    dom.uploadedFilesContainer.innerHTML = `
+      <p class="muted" style="text-align: center; font-size: 12px; margin: 10px 0;">현재 연동된 학습 자료가 없습니다.</p>
+    `;
+    return;
   }
+  
+  list.forEach((mat, index) => {
+    const card = document.createElement('div');
+    card.style.cssText = 'padding: 12px; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--line); border-radius: 6px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;';
+    const kb = (mat.size / 1024).toFixed(1);
+    
+    card.innerHTML = `
+      <div style="display: flex; align-items: center; gap: 8px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: 80%;">
+        <span style="font-size: 18px;">📄</span>
+        <div style="overflow: hidden; text-overflow: ellipsis;">
+          <div style="font-weight: 600; font-size: 13px; text-align: left; overflow: hidden; text-overflow: ellipsis;" title="${escapeHTML(mat.name)}">${escapeHTML(mat.name)}</div>
+          <div class="muted" style="font-size: 11px; text-align: left;">${kb} KB · ${mat.text.length.toLocaleString()}자 연동됨</div>
+        </div>
+      </div>
+      <button class="btn danger small delete-file-btn" data-index="${index}" title="자료 삭제" style="padding: 2px 6px; font-size: 11px;">삭제</button>
+    `;
+    
+    card.querySelector('.delete-file-btn').addEventListener('click', (e) => {
+      const idx = parseInt(e.target.dataset.index);
+      if (!confirm(`'${mat.name}' 자료를 연동 해제할까요?`)) return;
+      const currentList = storage.get('custom_ref_materials', []);
+      currentList.splice(idx, 1);
+      storage.set('custom_ref_materials', currentList);
+      renderCustomRefMaterial();
+      flashStatus('🗑️ 자료 삭제됨', 'ok');
+    });
+    
+    dom.uploadedFilesContainer.appendChild(card);
+  });
 }
 
 // Bind drag and drop events
@@ -566,8 +601,8 @@ if (dom.dropzone) {
   dom.dropzone.addEventListener('click', () => dom.fileUploader.click());
 
   dom.fileUploader.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (file) handleUploadedFile(file);
+    const files = Array.from(e.target.files);
+    if (files.length) handleUploadedFiles(files);
   });
 
   dom.dropzone.addEventListener('dragover', (e) => {
@@ -582,48 +617,251 @@ if (dom.dropzone) {
   dom.dropzone.addEventListener('drop', (e) => {
     e.preventDefault();
     dom.dropzone.classList.remove('dragover');
-    const file = e.dataTransfer.files[0];
-    if (file) handleUploadedFile(file);
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length) handleUploadedFiles(files);
   });
 }
 
-function handleUploadedFile(file) {
-  const name = file.name;
-  const ext = name.split('.').pop().toLowerCase();
-  if (ext !== 'txt' && ext !== 'md') {
-    flashStatus('⚠️ 지원하지 않는 파일 형식입니다. .md 또는 .txt만 업로드 가능합니다.', 'error');
+function handleUploadedFiles(files) {
+  let loadedCount = 0;
+  let errorCount = 0;
+  const currentList = storage.get('custom_ref_materials', []);
+
+  const textFiles = files.filter(file => {
+    const ext = file.name.split('.').pop().toLowerCase();
+    return ext === 'txt' || ext === 'md';
+  });
+
+  if (!textFiles.length) {
+    flashStatus('⚠️ .md 또는 .txt 형식의 텍스트 파일만 연동 가능합니다.', 'error');
     return;
   }
 
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    const text = e.target.result;
-    if (!text.trim()) {
-      flashStatus('⚠️ 빈 파일은 업로드할 수 없습니다.', 'error');
+  let processed = 0;
+  textFiles.forEach(file => {
+    // 중복 체크
+    if (currentList.some(item => item.name === file.name && item.size === file.size)) {
+      processed++;
+      if (processed === textFiles.length) {
+        storage.set('custom_ref_materials', currentList);
+        renderCustomRefMaterial();
+        flashStatus('📚 자료 동기화 완료!', 'ok');
+      }
       return;
     }
-    storage.set('custom_ref_material', {
-      name: file.name,
-      size: file.size,
-      text: text
-    });
-    renderCustomRefMaterial();
-    flashStatus('📚 학습 보조 자료 연동 완료!', 'ok');
-  };
-  reader.onerror = () => {
-    flashStatus('⚠️ 파일을 읽는 동안 오류가 발생했습니다.', 'error');
-  };
-  reader.readAsText(file);
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target.result;
+      if (text.trim()) {
+        currentList.push({
+          name: file.name,
+          size: file.size,
+          text: text
+        });
+        loadedCount++;
+      } else {
+        errorCount++;
+      }
+      processed++;
+      if (processed === textFiles.length) {
+        storage.set('custom_ref_materials', currentList);
+        renderCustomRefMaterial();
+        if (loadedCount > 0) {
+          flashStatus(`📚 ${loadedCount}개 학습 자료 추가 완료!`, 'ok');
+        } else {
+          flashStatus('⚠️ 유효한 텍스트 자료를 찾지 못했습니다.', 'error');
+        }
+      }
+    };
+    reader.onerror = () => {
+      errorCount++;
+      processed++;
+      if (processed === textFiles.length) {
+        storage.set('custom_ref_materials', currentList);
+        renderCustomRefMaterial();
+      }
+    };
+    reader.readAsText(file);
+  });
 }
 
-if (dom.deleteUploadBtn) {
-  dom.deleteUploadBtn.addEventListener('click', () => {
-    if (!confirm('업로드한 학습 참고자료를 삭제할까요? (AI 가이드라인에서 제외됩니다)')) return;
-    storage.remove('custom_ref_material');
-    dom.fileUploader.value = '';
-    renderCustomRefMaterial();
-    flashStatus('🗑️ 학습 자료 삭제됨', 'ok');
+// ---------- Google Drive API Integration ----------
+let gapiInited = false;
+let gisInited = false;
+
+function loadGoogleSDKs() {
+  if (gapiInited && gisInited) return;
+
+  // Load GAPI
+  if (!window.gapi) {
+    const s1 = document.createElement('script');
+    s1.src = 'https://apis.google.com/js/api.js';
+    s1.async = true;
+    s1.defer = true;
+    s1.onload = () => {
+      window.gapi.load('client', () => {
+        gapiInited = true;
+      });
+    };
+    document.head.appendChild(s1);
+  } else {
+    gapiInited = true;
+  }
+
+  // Load GIS
+  if (!window.google || !window.google.accounts) {
+    const s2 = document.createElement('script');
+    s2.src = 'https://accounts.google.com/gsi/client';
+    s2.async = true;
+    s2.defer = true;
+    s2.onload = () => {
+      gisInited = true;
+    };
+    document.head.appendChild(s2);
+  } else {
+    gisInited = true;
+  }
+}
+
+// Bind Drive Settings UI
+if (dom.gdriveClientId && dom.gdriveApiKey) {
+  dom.gdriveClientId.value = state.gdriveClientId || '';
+  dom.gdriveApiKey.value = state.gdriveApiKey || '';
+
+  dom.gdriveKeysSave.addEventListener('click', () => {
+    const cid = dom.gdriveClientId.value.trim();
+    const key = dom.gdriveApiKey.value.trim();
+    if (!cid || !key) {
+      setGdriveStatus('Client ID와 API Key를 모두 입력하세요.', 'error');
+      return;
+    }
+    state.gdriveClientId = cid;
+    state.gdriveApiKey = key;
+    storage.set('gdrive_client_id', cid);
+    storage.set('gdrive_api_key', key);
+    setGdriveStatus('구글 드라이브 설정 저장됨.', 'ok');
+    loadGoogleSDKs();
   });
+
+  dom.gdriveKeysClear.addEventListener('click', () => {
+    if (!confirm('구글 드라이브 연동 설정을 초기화할까요?')) return;
+    dom.gdriveClientId.value = '';
+    dom.gdriveApiKey.value = '';
+    state.gdriveClientId = '';
+    state.gdriveApiKey = '';
+    storage.remove('gdrive_client_id');
+    storage.remove('gdrive_api_key');
+    setGdriveStatus('설정 초기화됨.', 'error');
+  });
+}
+
+function setGdriveStatus(msg, cls) {
+  if (dom.gdriveStatus) {
+    dom.gdriveStatus.textContent = msg || '';
+    dom.gdriveStatus.className = 'status ' + (cls || 'muted');
+  }
+}
+
+// Trigger Google Picker to select document
+if (dom.googleDriveBtn) {
+  dom.googleDriveBtn.addEventListener('click', () => {
+    if (!state.gdriveClientId || !state.gdriveApiKey) {
+      alert('구글 드라이브 연동을 사용하려면 먼저 ⚙️ 설정 탭에서 Google Cloud Client ID와 API Key를 입력하고 저장해주세요.');
+      showView('settings');
+      return;
+    }
+    
+    loadGoogleSDKs();
+    
+    // Get Access Token using GIS
+    const tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: state.gdriveClientId,
+      scope: 'https://www.googleapis.com/auth/drive.readonly',
+      callback: async (response) => {
+        if (response.error !== undefined) {
+          alert('구글 인증 오류: ' + response.error);
+          return;
+        }
+        state.gdriveAccessToken = response.access_token;
+        // After auth, load Picker
+        gapi.load('picker', { callback: createPicker });
+      },
+    });
+    
+    // Request token (shows Google OAuth popup)
+    tokenClient.requestAccessToken({ prompt: 'consent' });
+  });
+}
+
+function createPicker() {
+  const view = new google.picker.DocsView(google.picker.ViewId.DOCS)
+    .setMimeTypes('text/plain,text/markdown,application/vnd.google-apps.document'); // txt, md, google doc
+  
+  const picker = new google.picker.PickerBuilder()
+    .addView(view)
+    .setOAuthToken(state.gdriveAccessToken)
+    .setDeveloperKey(state.gdriveApiKey)
+    .setCallback(pickerCallback)
+    .setTitle('학습 보조 자료 선택 (.txt, .md, 구글 문서)')
+    .enableFeature(google.picker.Feature.MULTISELECT_ENABLED) // 다중 선택 기능 활성화!
+    .build();
+    
+  picker.setVisible(true);
+}
+
+async function pickerCallback(data) {
+  if (data.action === google.picker.Action.PICKED) {
+    const files = data.docs;
+    const currentList = storage.get('custom_ref_materials', []);
+    let loadedCount = 0;
+    
+    setStatus('구글 드라이브 문서 가져오는 중…');
+    
+    for (const file of files) {
+      const fileId = file.id;
+      const name = file.name;
+      const isGoogleDoc = file.mimeType === 'application/vnd.google-apps.document';
+      
+      // 중복 체크
+      if (currentList.some(item => item.name === name)) continue;
+      
+      let fetchUrl = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`;
+      if (isGoogleDoc) {
+        // 구글 문서의 경우 순수 텍스트로 내보내기 API 호출
+        fetchUrl = `https://www.googleapis.com/drive/v3/files/${fileId}/export?mimeType=text/plain`;
+      }
+      
+      try {
+        const res = await fetch(fetchUrl, {
+          headers: { 'Authorization': `Bearer ${state.gdriveAccessToken}` }
+        });
+        
+        if (!res.ok) continue;
+        const text = await res.text();
+        
+        if (text.trim()) {
+          currentList.push({
+            name: isGoogleDoc ? `${name}.txt` : name,
+            size: new Blob([text]).size,
+            text: text
+          });
+          loadedCount++;
+        }
+      } catch (err) {
+        console.error('구글 드라이브 파일 로드 실패:', err);
+      }
+    }
+    
+    storage.set('custom_ref_materials', currentList);
+    renderCustomRefMaterial();
+    setStatus('');
+    if (loadedCount > 0) {
+      flashStatus(`📚 구글 드라이브에서 ${loadedCount}개 자료 추가 완료!`, 'ok');
+    } else {
+      flashStatus('⚠️ 연동 가능한 새 자료가 없습니다.', 'error');
+    }
+  }
 }
 
 // ---------- settings ----------

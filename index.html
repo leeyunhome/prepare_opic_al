@@ -185,25 +185,23 @@
 
       <div class="card" style="margin-top: 24px;">
         <h3>📚 나의 학습 보조 자료 (구글 드라이브 / 로컬 문서)</h3>
-        <p class="muted" style="font-size: 13px;">평소에 공부하던 마크다운(.md) 또는 텍스트(.txt) 요약본을 연동해보세요. AI가 질문 및 피드백 시 이 문서를 학습 참고자료로 인식하여 적극적으로 조언해 줍니다.</p>
+        <p class="muted" style="font-size: 13px;">평소에 공부하던 마크다운(.md) 또는 텍스트(.txt) 요약본을 연동해보세요. 여러 개의 문서를 동시에 드롭하여 참고 자료집을 구축할 수 있습니다. AI가 질문 및 피드백 시 이 자료들을 모두 적극적으로 학습하여 조언해 줍니다.</p>
         
         <div id="dropzone" class="dropzone" style="border: 2px dashed var(--line); border-radius: 8px; padding: 30px; text-align: center; cursor: pointer; transition: background 0.2s, border-color 0.2s; margin-top: 14px;">
           <span style="font-size: 30px;">📤</span>
-          <p style="margin: 8px 0 4px; font-weight: 600;">마우스로 파일을 끌어서 여기에 놓으세요</p>
-          <p class="muted" style="font-size: 12px; margin: 0;">또는 클릭하여 직접 파일 선택 (.md, .txt)</p>
-          <input type="file" id="file-uploader" accept=".md,.txt" style="display: none;" />
+          <p style="margin: 8px 0 4px; font-weight: 600;">마우스로 파일들을 끌어서 여기에 놓으세요</p>
+          <p class="muted" style="font-size: 12px; margin: 0;">또는 클릭하여 직접 다중 파일 선택 (.md, .txt)</p>
+          <input type="file" id="file-uploader" accept=".md,.txt" style="display: none;" multiple />
         </div>
 
-        <div id="upload-status-card" class="hidden" style="margin-top: 16px; padding: 12px; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--line); border-radius: 6px; display: flex; align-items: center; justify-content: space-between;">
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <span style="font-size: 20px;">📄</span>
-            <div>
-              <div id="uploaded-filename" style="font-weight: 600; font-size: 14px; text-align: left;"></div>
-              <div id="uploaded-filesize" class="muted" style="font-size: 11px; text-align: left;"></div>
-            </div>
-          </div>
-          <button id="delete-upload-btn" class="btn danger small" title="참고자료 삭제" style="padding: 4px 8px; font-size: 12px;">삭제</button>
+        <div style="margin-top: 12px; display: flex; justify-content: center; gap: 8px;">
+          <button id="google-drive-btn" class="btn primary small" style="padding: 7px 14px; font-size: 13px; display: flex; align-items: center; gap: 6px;">
+            🤖 내 구글 드라이브에서 직접 문서 선택
+          </button>
         </div>
+
+        <!-- 다중 파일 연동 상태 리스트 렌더링 컨테이너 -->
+        <div id="uploaded-files-container" style="margin-top: 16px; display: flex; flex-direction: column; gap: 8px;"></div>
       </div>
     </section>
 
@@ -232,6 +230,27 @@
           </select>
         </label>
         <p id="api-status" class="status muted"></p>
+      </div>
+
+      <div class="card">
+        <h3>📂 Google Drive API 연동 설정</h3>
+        <p class="muted">
+          구글 드라이브에서 직접 문서를 선택해 오려면 Google Cloud OAuth Client ID와 Developer API Key가 필요합니다. 
+          (<a href="https://console.cloud.google.com/" target="_blank" rel="noopener">Google Cloud Console</a>에서 무료 발급 가능)
+        </p>
+        <div class="form" style="margin-top: 10px;">
+          <label>OAuth 2.0 Client ID
+            <input type="text" id="gdrive-client-id" placeholder="123456789-abcde.apps.googleusercontent.com" autocomplete="off" style="width: 100%;" />
+          </label>
+          <label>Developer API Key (Picker용)
+            <input type="password" id="gdrive-api-key" placeholder="AIzaSy..." autocomplete="off" style="width: 100%;" />
+          </label>
+          <div class="form-actions">
+            <button id="gdrive-keys-save" class="btn primary">저장</button>
+            <button id="gdrive-keys-clear" class="btn ghost">설정 초기화</button>
+          </div>
+          <p id="gdrive-status" class="status muted"></p>
+        </div>
       </div>
 
       <div class="card">
