@@ -98,6 +98,12 @@ const dom = {
 
   keyModal: $('#key-modal'),
   keyModalGo: $('#key-modal-go'),
+  dropzone: $('#dropzone'),
+  fileUploader: $('#file-uploader'),
+  uploadStatusCard: $('#upload-status-card'),
+  uploadedFilename: $('#uploaded-filename'),
+  uploadedFilesize: $('#uploaded-filesize'),
+  deleteUploadBtn: $('#delete-upload-btn'),
 };
 
 // ---------- nav ----------
@@ -540,6 +546,86 @@ dom.profileResetBtn.addEventListener('click', () => {
   flashStatus('프로필 초기화됨', 'ok');
 });
 
+// ---------- custom reference uploader ----------
+function renderCustomRefMaterial() {
+  const mat = storage.get('custom_ref_material', null);
+  if (mat && mat.text) {
+    dom.uploadedFilename.textContent = mat.name;
+    const kb = (mat.size / 1024).toFixed(1);
+    dom.uploadedFilesize.textContent = `${kb} KB · ${mat.text.length.toLocaleString()}자 로드됨`;
+    dom.uploadStatusCard.classList.remove('hidden');
+  } else {
+    dom.uploadStatusCard.classList.add('hidden');
+    dom.uploadedFilename.textContent = '';
+    dom.uploadedFilesize.textContent = '';
+  }
+}
+
+// Bind drag and drop events
+if (dom.dropzone) {
+  dom.dropzone.addEventListener('click', () => dom.fileUploader.click());
+
+  dom.fileUploader.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) handleUploadedFile(file);
+  });
+
+  dom.dropzone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dom.dropzone.classList.add('dragover');
+  });
+
+  dom.dropzone.addEventListener('dragleave', () => {
+    dom.dropzone.classList.remove('dragover');
+  });
+
+  dom.dropzone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dom.dropzone.classList.remove('dragover');
+    const file = e.dataTransfer.files[0];
+    if (file) handleUploadedFile(file);
+  });
+}
+
+function handleUploadedFile(file) {
+  const name = file.name;
+  const ext = name.split('.').pop().toLowerCase();
+  if (ext !== 'txt' && ext !== 'md') {
+    flashStatus('⚠️ 지원하지 않는 파일 형식입니다. .md 또는 .txt만 업로드 가능합니다.', 'error');
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const text = e.target.result;
+    if (!text.trim()) {
+      flashStatus('⚠️ 빈 파일은 업로드할 수 없습니다.', 'error');
+      return;
+    }
+    storage.set('custom_ref_material', {
+      name: file.name,
+      size: file.size,
+      text: text
+    });
+    renderCustomRefMaterial();
+    flashStatus('📚 학습 보조 자료 연동 완료!', 'ok');
+  };
+  reader.onerror = () => {
+    flashStatus('⚠️ 파일을 읽는 동안 오류가 발생했습니다.', 'error');
+  };
+  reader.readAsText(file);
+}
+
+if (dom.deleteUploadBtn) {
+  dom.deleteUploadBtn.addEventListener('click', () => {
+    if (!confirm('업로드한 학습 참고자료를 삭제할까요? (AI 가이드라인에서 제외됩니다)')) return;
+    storage.remove('custom_ref_material');
+    dom.fileUploader.value = '';
+    renderCustomRefMaterial();
+    flashStatus('🗑️ 학습 자료 삭제됨', 'ok');
+  });
+}
+
 // ---------- settings ----------
 dom.apiKeyInput.value = state.apiKey || '';
 dom.modelSelect.value = state.model;
@@ -737,6 +823,7 @@ function requireKeyThen(fn) {
 fillProfileForm();
 renderDashboard();
 renderBookView();
+renderCustomRefMaterial();
 if (!state.apiKey) {
   // Friendly first-time experience: land on settings.
   showView('settings');

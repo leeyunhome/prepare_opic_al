@@ -1,6 +1,7 @@
 // System prompt builder.
 // 페르소나는 "Ava"로 유지하되 매번 책의 7가지 규칙·MP 공식·필러 룰을 시스템 프롬프트에 주입.
 // 일자별 룰 + 모드 스타일 + 사용자 TMI 까지 합쳐서 모델이 책 그대로 코칭하게 만든다.
+import * as storage from './storage.js';
 import { profileSummary } from './profile.js';
 import { SEVEN_RULES, MP_FORMULA, FILLERS, CATEGORY_STRATEGY, COACHING_PATTERNS, BOOK, IHU, HONEY_TIPS, ADDITIONAL_REFERENCES } from './bookRules.js';
 import { gmpPromptBlock } from './gmpRules.js';
@@ -130,6 +131,22 @@ function additionalReferencesBlock() {
   ].join('\n');
 }
 
+function customRefMaterialBlock() {
+  const mat = storage.get('custom_ref_material', null);
+  if (!mat || !mat.text) return '';
+  return [
+    '=== [학습자 연동 보조 참고자료 (구글 드라이브/로컬 PC)] ===',
+    `파일명: ${mat.name}`,
+    `자료 본문:`,
+    mat.text,
+    '',
+    '=== [가이드라인] ===',
+    '- 위 자료는 사용자가 평소 공부하고 학습용으로 암기하거나 연동하려는 특별 마크다운/텍스트 자료집이야.',
+    '- 학습자에게 질문을 유도하거나, 답변에 대한 피드백(특히 💡 오픽노잼 스타일 한 줄 교정)을 제공할 때, 위 자료의 스크립트 뉘앙스, 유용한 구문 및 핵심 단어들을 영리하게 차용하여 코칭해줘.',
+    '- 자료와 부합하는 맥락이 보이면 "업로드해주신 참고자료의 ___ 패턴을 여기에 응용해볼 수 있어요." 식으로 가이드를 직접 주면 더 훌륭한 고득점 훈련이 될 거야.'
+  ].join('\n');
+}
+
 const FEEDBACK_RULES = `
 === 피드백 포맷 (모든 답변 직후 — Mock Exam 모드 제외) ===
 사용자가 답변하면, 다음을 한 묶음으로 짧게 출력. 4줄 이내. 그 다음 바로 다음 질문.
@@ -203,6 +220,8 @@ export function buildSystemPrompt({ profile, day, mode }) {
     additionalReferencesBlock(),
     '',
     gmpPromptBlock(),
+    '',
+    customRefMaterialBlock(),
     '',
     '=== SESSION MODE ===',
     modeStyle,
