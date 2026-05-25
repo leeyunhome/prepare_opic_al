@@ -5,13 +5,13 @@ import { loadProfile, saveProfile, resetProfile, DEFAULT_PROFILE } from './profi
 import { buildSystemPrompt, openingMessage } from './prompts.js';
 import { generate, testKey, GeminiError } from './gemini.js';
 import { Recognizer, tts, ttsClean } from './speech.js';
-import { BOOK, SEVEN_RULES, MP_FORMULA, FILLERS, CATEGORY_STRATEGY, COACHING_PATTERNS, IHU, HONEY_TIPS, OPENERS, TOPIC_VOCAB } from './bookRules.js';
+import { BOOK, SEVEN_RULES, MP_FORMULA, FILLERS, CATEGORY_STRATEGY, COACHING_PATTERNS, IHU, HONEY_TIPS, OPENERS, TOPIC_VOCAB, ADDITIONAL_REFERENCES } from './bookRules.js';
 import { GMP, CURRENT_WAR_EPISODES } from './gmpRules.js';
 
 // ---------- state ----------
 const state = {
   apiKey: storage.get('api_key', ''),
-  model: storage.get('model', 'gemini-2.0-flash'),
+  model: storage.get('model', 'gemini-2.5-flash'),
   profile: loadProfile(),
   selectedDayN: currentDay().n,
   mode: currentDay().mode,
@@ -59,6 +59,7 @@ const dom = {
   gmpMeta: $('#gmp-meta'),
   gmpEpisodes: $('#gmp-episodes'),
   coachingPatterns: $('#coaching-patterns'),
+  additionalRefsBlock: $('#additional-refs-block'),
 
   // training
   trainTitle: $('#train-title'),
@@ -212,6 +213,39 @@ function renderBookView() {
       <div>💡 <code>${escapeHTML(p.rewrite)}</code></div>
     </li>
   `).join('');
+
+  if (dom.additionalRefsBlock) {
+    const { lee_chul_middle_school: lee, ban_gpt_chat: ban } = ADDITIONAL_REFERENCES;
+    dom.additionalRefsBlock.innerHTML = `
+      <div class="ref-sub-section" style="margin-bottom: 10px;">
+        <div class="ref-sub-title" style="font-weight: bold; font-size: 15px; color: var(--primary);">📘 ${escapeHTML(lee.book_title)}</div>
+        <p class="muted" style="margin:4px 0 10px; font-size: 13px;">${escapeHTML(lee.purpose)}</p>
+        <ul class="rule-list">
+          ${lee.patterns.map(p => `
+            <li style="margin-bottom: 12px; list-style: none;">
+              <div class="rule-head" style="font-weight: 600;"><code>${escapeHTML(p.pattern)}</code> — ${escapeHTML(p.ko)}</div>
+              <div class="muted" style="font-size: 12px;">🎯 용도: ${escapeHTML(p.opic_usage)}</div>
+              <div style="font-size: 13px;">💡 예: <code>${escapeHTML(p.example)}</code></div>
+            </li>
+          `).join('')}
+        </ul>
+      </div>
+      <hr style="border:0;border-top:1px dashed var(--line);margin:16px 0" />
+      <div class="ref-sub-section">
+        <div class="ref-sub-title" style="font-weight: bold; font-size: 15px; color: var(--primary);">📙 ${escapeHTML(ban.book_title)}</div>
+        <p class="muted" style="margin:4px 0 10px; font-size: 13px;">${escapeHTML(ban.purpose)}</p>
+        <ul class="rule-list">
+          ${ban.patterns.map(p => `
+            <li style="margin-bottom: 12px; list-style: none;">
+              <div class="rule-head" style="font-weight: 600;"><code>${escapeHTML(p.pattern)}</code> — ${escapeHTML(p.ko)}</div>
+              <div class="muted" style="font-size: 12px;">🎯 용도: ${escapeHTML(p.opic_usage)}</div>
+              <div style="font-size: 13px;">💡 예: <code>${escapeHTML(p.example)}</code></div>
+            </li>
+          `).join('')}
+        </ul>
+      </div>
+    `;
+  }
 
   dom.ihuBlock.innerHTML = `
     <p class="muted">${escapeHTML(IHU.what)}</p>
@@ -553,16 +587,42 @@ function populateVoices() {
     dom.ttsVoiceSelect.appendChild(opt);
     return;
   }
-  for (const v of list) {
+
+  function getVoiceBadge(name) {
+    if (/Aria/i.test(name)) return '🌟 [추천/Aria] ';
+    if (/Guy/i.test(name)) return '🌟 [추천/Guy] ';
+    if (/Jenny/i.test(name)) return '🌟 [추천/Jenny] ';
+    if (/Ryan/i.test(name)) return '🌟 [추천/Ryan] ';
+    if (/Michelle/i.test(name)) return '🌟 [추천/Michelle] ';
+    if (/Natural/i.test(name) || /Neural/i.test(name)) return '🌟 [고품질/Natural] ';
+    if (/Siri/i.test(name)) return '🎙️ [Siri 음성] ';
+    if (/Samantha/i.test(name)) return '🎙️ [추천/Samantha] ';
+    if (/Google US English/i.test(name)) return '🎙️ [Google 메인] ';
+    if (/Google/i.test(name)) return '🎙️ [Google 음성] ';
+    if (/Cortana/i.test(name)) return '🎙️ [Cortana 비서] ';
+    return '';
+  }
+
+  const sortedList = [...list].sort((a, b) => {
+    const badgeA = getVoiceBadge(a.name);
+    const badgeB = getVoiceBadge(b.name);
+    if (badgeA && !badgeB) return -1;
+    if (!badgeA && badgeB) return 1;
+    return a.name.localeCompare(b.name);
+  });
+
+  for (const v of sortedList) {
     const opt = document.createElement('option');
     opt.value = v.voiceURI;
-    opt.textContent = `${v.name} (${v.lang})`;
+    const badge = getVoiceBadge(v.name);
+    opt.textContent = `${badge}${v.name} (${v.lang})`;
     if (state.ttsVoiceURI === v.voiceURI) opt.selected = true;
     dom.ttsVoiceSelect.appendChild(opt);
   }
+
   // pick a sensible default if none stored
   if (!state.ttsVoiceURI) {
-    const pref = list.find((v) => /Google|Microsoft Aria|Natural/.test(v.name)) || list[0];
+    const pref = sortedList.find((v) => getVoiceBadge(v.name) !== '') || sortedList[0];
     if (pref) {
       state.ttsVoiceURI = pref.voiceURI;
       dom.ttsVoiceSelect.value = pref.voiceURI;

@@ -327,3 +327,86 @@ export const COACHING_PATTERNS = [
     rewrite: '"It\'s kind of like a country... uh, the countryside. 죄송, the countryside." 식으로 정정해도 OK.',
   },
 ];
+
+// ★ 추가 참고자료 연동: 이근철 중학영어 & 반병현 챗GPT 영어회화 고득점 핵심 패턴 데이터
+export const ADDITIONAL_REFERENCES = {
+  lee_chul_middle_school: {
+    book_title: '이근철 중학 영어 (중학교 교과서로 다시 시작하는 영어회화 트레이닝 북)',
+    purpose: '오픽 시험 전반(특히 과거 후회, 조언 구하기, 가정법, 제안하기)에서 고득점(IH/AL)을 따기 위한 기초 체력 및 문장 구조 탄탄화',
+    patterns: [
+      {
+        pattern: 'Do you want me to + [동사원형]?',
+        ko: '내가 ~해줄까? / 내가 ~하기를 원해?',
+        opic_usage: '롤플레이(RP 11/12)에서 대안을 제시하거나 상대의 의향을 정중하게 물을 때 최고의 자연스러움을 연출.',
+        example: '"Do you want me to pick you up at the airport?" (내가 공항으로 데리러 갈까?)'
+      },
+      {
+        pattern: 'Would you mind if I + [동사 과거형]?',
+        ko: '제가 ~해도 괜찮겠습니까?',
+        opic_usage: '롤플레이(RP 11) 또는 까다로운 양해 구하기 상황에서 공손하고 세련된 문장력을 어필하여 AL 득점.',
+        example: '"Would you mind if I brought a friend to your party?" (제가 파티에 친구 한 명 데려가도 괜찮을까요?)'
+      },
+      {
+        pattern: 'I should\'ve + [과거분사(p.p.)]...',
+        ko: '내가 ~했어야 했는데 (하지 못해 후회함)',
+        opic_usage: '과거 경험 묘사(Past Story) 카테고리에서 곤경에 처했거나 문제가 생겼을 때, 강한 후회나 아쉬움의 감정을 극적으로 묘사하는 AL 치트키 표현.',
+        example: '"Oh man, I should\'ve listened to you in the first place!" (아, 진짜 애초에 네 말을 들었어야 했는데!)'
+      },
+      {
+        pattern: 'All you have to do is + [동사원형]',
+        ko: '당신은 단지 ~하기만 하면 됩니다',
+        opic_usage: '어떤 작동법이나 해결책을 설명할 때 문장을 장황하게 늘어놓지 않고 명료하게 임팩트를 주어 말하기 유용.',
+        example: '"All you have to do is just click that button on the screen." (화면의 저 버튼을 클릭하기만 하면 돼.)'
+      },
+      {
+        pattern: 'I wish I were + [형용사/명사] / I wish I could + [동사원형]',
+        ko: '~라면 참 좋을 텐데 / ~할 수 있다면 참 좋을 텐데 (실현 어려운 소망)',
+        opic_usage: '감정 표현이나 아쉬움 묘사 시, 단순한 factual statement를 뛰어넘어 다채로운 가정법 구조를 구사하여 채점관의 가산점을 획득.',
+        example: '"I wish I could go back to that beautiful beach right now." (지금 당장 그 아름다운 해변으로 돌아갈 수 있다면 얼마나 좋을까.)'
+      },
+      {
+        pattern: 'I think I should get going.',
+        ko: '이제 나 가봐야 할 것 같아.',
+        opic_usage: '친구에게 상황을 설명하고 롤플레이 대화를 자연스럽고 원어민답게 마무리하는 만능 종결구.',
+        example: '"Anyway, I think I should get going. Talk to you later!" (어쨌든, 나 이제 가봐야겠어. 나중에 얘기하자!)'
+      }
+    ]
+  },
+  ban_gpt_chat: {
+    book_title: '반병현 챗GPT 영어회화책',
+    purpose: '오픽 돌발 상황 해결 및 롤플레이에서 즉흥적인 화술과 자연스러운 회화 전환을 위해 필수적인 실무 만능 구문 제공',
+    patterns: [
+      {
+        pattern: 'I was wondering where I can find + [명사]...',
+        ko: '혹시 ~을 어디서 찾을 수 있을지 궁금합니다.',
+        opic_usage: '공항 분실물, 호텔 편의시설 문의 등 롤플레이 오프닝에서 원어민들이 가장 즐겨 쓰는 부드럽고 자연스러운 질문 유도 패턴.',
+        example: '"I was wondering where I can find the laundry room, please?" (혹시 세탁실이 어디 있는지 알 수 있을까요?)'
+      },
+      {
+        pattern: 'It would be greatly appreciated if you can get back to me with + [의문사 절/명사]...',
+        ko: '~에 대해 저에게 다시 연락을 주시면 정말 감사하겠습니다.',
+        opic_usage: '호텔 컴플레인(소음/고장) 또는 예약 문의 롤플레이에서 비즈니스적인 교양과 격식 있는 요청으로 고득점을 확보하는 킬러 구문.',
+        example: '"It would be greatly appreciated if you can get back to me with when the repair will be done." (수리가 언제 끝나는지 알려주시면 대단히 감사하겠습니다.)'
+      },
+      {
+        pattern: 'As long as [주어] [동사], I have no complaints.',
+        ko: '~하기만 한다면, 저는 아무런 불만이 없습니다 (타협/양보)',
+        opic_usage: '어려운 조건부 합의나 롤플레이 문제 극복 상황에서 자신의 양보 마지노선을 자연스럽고 똑똑하게 제시하는 표현.',
+        example: '"As long as the room gets quiet soon, I have no complaints." (방이 금방 조용해지기만 한다면 저는 아무 불만 없습니다.)'
+      },
+      {
+        pattern: 'It is spacious, so much more than I was expecting.',
+        ko: '공간이 아주 널찍하네요, 제 기대 이상입니다.',
+        opic_usage: '집 묘사, 가구 묘사, 카페/식당 묘사에서 AL 핵심 채점 기준인 "기대치와의 구체적인 비교 감상"을 탁월하게 드러내는 형용 표현.',
+        example: '"Oh, I love this living room! It is spacious, so much more than I was expecting." (와, 거실 너무 마음에 들어요! 기대했던 것보다 훨씬 더 넓네요.)'
+      },
+      {
+        pattern: 'Would it be crowded over there?',
+        ko: '그곳이 북적거릴까요? / 사람이 많을까요?',
+        opic_usage: '롤플레이 및 즉흥 대화에서 혼자만 질문을 퍼붓지 않고, 대화를 쌍방향으로 자연스럽게 전환하며 화제를 심화시키는 연결 질문.',
+        example: '"Would it be crowded over there during the holiday?" (휴일 동안 그곳이 많이 북적거릴까요?)'
+      }
+    ]
+  }
+};
+

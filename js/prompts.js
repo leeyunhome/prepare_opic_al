@@ -2,7 +2,7 @@
 // 페르소나는 "Ava"로 유지하되 매번 책의 7가지 규칙·MP 공식·필러 룰을 시스템 프롬프트에 주입.
 // 일자별 룰 + 모드 스타일 + 사용자 TMI 까지 합쳐서 모델이 책 그대로 코칭하게 만든다.
 import { profileSummary } from './profile.js';
-import { SEVEN_RULES, MP_FORMULA, FILLERS, CATEGORY_STRATEGY, COACHING_PATTERNS, BOOK, IHU, HONEY_TIPS } from './bookRules.js';
+import { SEVEN_RULES, MP_FORMULA, FILLERS, CATEGORY_STRATEGY, COACHING_PATTERNS, BOOK, IHU, HONEY_TIPS, ADDITIONAL_REFERENCES } from './bookRules.js';
 import { gmpPromptBlock } from './gmpRules.js';
 
 function todayStr() {
@@ -101,6 +101,35 @@ function coachingPatternsBlock() {
   ].join('\n');
 }
 
+function additionalReferencesBlock() {
+  const { lee_chul_middle_school: lee, ban_gpt_chat: ban } = ADDITIONAL_REFERENCES;
+  
+  const leePatterns = lee.patterns.map(p => 
+    `  - [패턴] ${p.pattern} (${p.ko})\n    · 용도: ${p.opic_usage}\n    · 예시: ${p.example}`
+  ).join('\n');
+  
+  const banPatterns = ban.patterns.map(p => 
+    `  - [패턴] ${p.pattern} (${p.ko})\n    · 용도: ${p.opic_usage}\n    · 예시: ${p.example}`
+  ).join('\n');
+
+  return [
+    '=== [고득점 연동 자료 1] 이근철 중학 영어 핵심 패턴 ===',
+    `교재: ${lee.book_title}`,
+    `목적: ${lee.purpose}`,
+    leePatterns,
+    '',
+    '=== [고득점 연동 자료 2] 반병현 챗GPT 영어회화 실무 패턴 ===',
+    `교재: ${ban.book_title}`,
+    `목적: ${ban.purpose}`,
+    banPatterns,
+    '',
+    '=== [가이드라인] 연동 자료 활용 코칭 규칙 ===',
+    '1. 피드백 또는 힌트(특히 💡 오픽노잼 스타일 한 줄 교정)를 줄 때, 위 두 교재의 [패턴]과 [예시]를 적극적으로 활용해.',
+    '2. 학생의 답변에 문법적 구조 보강이 필요하거나 더 세련된 표현이 어울릴 때 "이근철 중학영어 패턴" 또는 "반병현 교재의 패턴"을 명시하며 더 유창하게 말하는 방법을 추천해줘.',
+    '3. 롤플레이나 돌발 문제 상황에서는 반병현 교재의 문제 해결 및 타협 구문을 꼭 하나 이상 추천해줘.'
+  ].join('\n');
+}
+
 const FEEDBACK_RULES = `
 === 피드백 포맷 (모든 답변 직후 — Mock Exam 모드 제외) ===
 사용자가 답변하면, 다음을 한 묶음으로 짧게 출력. 4줄 이내. 그 다음 바로 다음 질문.
@@ -170,6 +199,8 @@ export function buildSystemPrompt({ profile, day, mode }) {
     honeyTipsBlock(),
     '',
     coachingPatternsBlock(),
+    '',
+    additionalReferencesBlock(),
     '',
     gmpPromptBlock(),
     '',
