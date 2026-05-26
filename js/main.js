@@ -96,6 +96,12 @@ const dom = {
   autoSendToggle: $('#auto-send'),
   silenceMs: $('#silence-ms'),
   silenceMsVal: $('#silence-ms-val'),
+  trainDownloadBtn: $('#train-download-btn'),
+  historyList: $('#history-list'),
+  historyActions: $('#history-actions'),
+  historyEmpty: $('#history-empty'),
+  historyDownloadAll: $('#history-download-all'),
+  historyClear: $('#history-clear'),
   exportBtn: $('#export-btn'),
   clearBtn: $('#clear-btn'),
 
@@ -326,6 +332,10 @@ dom.startTodayBtn.addEventListener('click', () => {
 
 // ---------- training session ----------
 function startSession() {
+  // 이전 세션이 있으면 저장 후 초기화
+  if (state.history.length > 1) saveCurrentSession();
+  currentSessionId = generateSessionId();
+
   const day = dayByNumber(state.selectedDayN);
   state.mode = state.mode || day.mode;
   state.history = [];
@@ -380,6 +390,8 @@ async function sendUserMessage(text) {
     updateHints(reply);
     setStatus('');
     markDayProgressIfNeeded();
+    saveCurrentSession();
+    renderHistoryList();
   } catch (err) {
     thinkingNode.remove();
     const msg = err instanceof GeminiError ? err.message : (err.message || String(err));
@@ -400,6 +412,140 @@ function markDayProgressIfNeeded() {
     renderDashboard();
   }
 }
+
+// ---------- session log (자동 저장 + 다운로드) ----------
+// 세션은 [{id, date, dayN, dayTopic, mode, history}] 형태로 localStorage에 쌓인다.
+let currentSessionId = null;
+
+function generateSessionId() {
+  const now = new Date();
+  const ts = now.toISOString().replace(/[-:T]/g, '').slice(0, 14);
+  return `sess_${ts}_${Math.random().toString(36).slice(2, 6)}`;
+}
+
+function saveCurrentSession() {
+  if (!state.history.length) return;
+  const logs = storage.get('session_logs', []);
+  const day = dayByNumber(state.selectedDayN);
+  const entry = {
+    id: currentSessionId || generateSessionId(),
+    date: new Date().toISOString(),
+    dayN: state.selectedDayN,
+    dayTopic: day.topic,
+    mode: state.mode,
+    history: [...state.history],
+  };
+  // 같은 세션 ID가 있으면 갱신, 없으면 추가
+  const idx = logs.findIndex((l) => l.id === entry.id);
+  if (idx >= 0) {
+    logs[idx] = entry;
+  } else {
+    logs.push(entry);
+  }
+  // 오래된 기록 100개 제한 (localStorage 용량 보호)
+  while (logs.length > 100) logs.shift();
+  storage.set('session_logs', logs);
+  currentSessionId = entry.id;
+}
+
+function sessionToText(sess) {
+  const header = [
+    `=== OPIc Sparring Session ===`,
+    `날짜: ${new Date(sess.date).toLocaleString('ko-KR')}`,
+    `Day ${sess.dayN} — ${sess.dayTopic}`,
+    `모드: ${sess.mode}`,
+    `턴 수: ${sess.history.length}`,
+    ``,
+  ].join('\n');
+  const body = sess.history.map((m) => {
+    const label = m.role === 'user' ? '🧑 나' : '🤖 Ava';
+    return `${label}:\n${m.text}`;
+  }).join('\n\n');
+  return header + body + '\n';
+}
+
+function downloadText(text, filename) {
+  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 200);
+}
+
+function renderHistoryList() {
+  const logs = storage.get('session_logs', []);
+  if (!logs.length) {
+    dom.historyList.innerHTML = '';
+    dom.historyActions.style.display = 'none';
+    dom.historyEmpty.style.display = '';
+    return;
+  }
+  dom.historyEmpty.style.display = 'none';
+  dom.historyActions.style.display = 'flex';
+  // 최신 순
+  const sorted = [...logs].reverse();
+  dom.historyList.innerHTML = sorted.map((s) => {
+    const d = new Date(s.date);
+    const dateStr = `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    const userTurns = s.history.filter((m) => m.role === 'user').length;
+    const preview = s.history.find((m) => m.role === 'user')?.text || '';
+    return `
+      <div class="history-item">
+        <div class="hi-info">
+          <div class="hi-date">${escapeHTML(dateStr)}</div>
+          <div class="hi-title">Day ${s.dayN} — ${escapeHTML(s.dayTopic)} (${escapeHTML(s.mode)})</div>
+          <div class="hi-preview">${escapeHTML(preview.slice(0, 80))}</div>
+        </div>
+        <span class="hi-turns">${userTurns}턴</span>
+        <button class="btn ghost small" data-sess-id="${escapeHTML(s.id)}" title="이 세션 다운로드">📥</button>
+      </div>
+    `;
+  }).join('');
+  // 개별 다운로드 버튼 이벤트
+  dom.historyList.querySelectorAll('button[data-sess-id]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const sess = logs.find((l) => l.id === btn.dataset.sessId);
+      if (!sess) return;
+      const d = new Date(sess.date);
+      const fname = `opic_day${sess.dayN}_${d.toISOString().slice(0, 10)}.txt`;
+      downloadText(sessionToText(sess), fname);
+    });
+  });
+}
+
+// 전체 기록 다운로드
+dom.historyDownloadAll.addEventListener('click', () => {
+  const logs = storage.get('session_logs', []);
+  if (!logs.length) return;
+  const all = logs.map((s) => sessionToText(s)).join('\n\n' + '='.repeat(60) + '\n\n');
+  downloadText(all, `opic_all_sessions_${new Date().toISOString().slice(0, 10)}.txt`);
+});
+
+// 기록 전체 삭제
+dom.historyClear.addEventListener('click', () => {
+  if (!confirm('학습 기록을 전부 삭제할까요? 이 작업은 되돌릴 수 없습니다.')) return;
+  storage.remove('session_logs');
+  renderHistoryList();
+});
+
+// 현재 세션 다운로드 (Training 헤더 📥 버튼)
+dom.trainDownloadBtn.addEventListener('click', () => {
+  if (!state.history.length) { flashStatus('대화 내용이 없습니다.', 'error'); return; }
+  const day = dayByNumber(state.selectedDayN);
+  const sess = {
+    id: currentSessionId || 'current',
+    date: new Date().toISOString(),
+    dayN: state.selectedDayN,
+    dayTopic: day.topic,
+    mode: state.mode,
+    history: [...state.history],
+  };
+  const d = new Date();
+  const fname = `opic_day${sess.dayN}_${d.toISOString().slice(0, 10)}_${String(d.getHours()).padStart(2, '0')}${String(d.getMinutes()).padStart(2, '0')}.txt`;
+  downloadText(sessionToText(sess), fname);
+});
 
 function updateHints(aiText) {
   // Look for a [keywords: ...] hint block emitted by Active Recall mode.
@@ -1061,6 +1207,7 @@ function requireKeyThen(fn) {
 fillProfileForm();
 renderDashboard();
 renderBookView();
+renderHistoryList();
 renderCustomRefMaterial();
 if (!state.apiKey) {
   // Friendly first-time experience: land on settings.
