@@ -134,20 +134,41 @@ function additionalReferencesBlock() {
 function customRefMaterialBlock() {
   const list = storage.get('custom_ref_materials', []);
   if (!list || !list.length) return '';
-  
-  const docs = list.map((mat, i) => 
-    `[참고자료 #${i + 1}] 파일명: ${mat.name}\n본문 내용:\n${mat.text}`
-  ).join('\n\n---\n\n');
+
+  // 업로드 문서 전체를 시스템 프롬프트에 넣으면 Gemini 토큰 한도(1M)를 초과할 수 있다.
+  // 합산 30,000자(~7.5K 토큰) 캡을 씌워 안전하게 유지.
+  const MAX_CHARS = 30000;
+  let totalChars = 0;
+  const docs = [];
+  let truncated = false;
+
+  for (let i = 0; i < list.length; i++) {
+    const mat = list[i];
+    const text = (mat.text || '').trim();
+    if (!text) continue;
+
+    if (totalChars + text.length > MAX_CHARS) {
+      const remaining = MAX_CHARS - totalChars;
+      if (remaining > 200) {
+        docs.push(`[참고자료 #${i + 1}] 파일명: ${mat.name}\n본문 내용 (일부, ${remaining}자 까지):\n${text.slice(0, remaining)}\n... (이하 생략 — 프롬프트 토큰 한도 보호)`);
+      }
+      truncated = true;
+      break;
+    }
+    docs.push(`[참고자료 #${i + 1}] 파일명: ${mat.name}\n본문 내용:\n${text}`);
+    totalChars += text.length;
+  }
 
   return [
     '=== [학습자 연동 보조 참고자료집 (구글 드라이브 / 로컬 다중 문서)] ===',
-    docs,
+    docs.join('\n\n---\n\n'),
+    truncated ? `⚠ 참고자료가 ${MAX_CHARS}자를 초과하여 일부만 포함됨. 핵심 표현 위주로 작은 파일로 나눠 업로드하면 더 효과적.` : '',
     '',
     '=== [가이드라인] ===',
     '- 위 자료들은 학습자가 오픽 시험 고득점을 목표로 평소 공부하고 연동한 특별 참고 문서 모음집이야.',
     '- 학습자에게 질문을 유도하거나, 답변에 대한 피드백(특히 💡 오픽노잼 스타일 한 줄 교정)을 제공할 때, 위 참고자료들의 표현, 어휘 및 문장 구조들을 적극적으로 복습시키고 훈련에 활용하도록 유도해줘.',
     '- 학습자의 답변에 어울리는 구절이 해당 자료 안에 있을 때 "연동해주신 참고자료의 ___ 패턴을 여기 적용해볼 수 있어요." 식으로 가이드를 직접 주면 고득점 학습에 엄청난 도움이 될 거야.'
-  ].join('\n');
+  ].filter(Boolean).join('\n');
 }
 
 const FEEDBACK_RULES = `
