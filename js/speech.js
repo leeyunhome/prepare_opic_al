@@ -177,9 +177,56 @@ export const tts = (() => {
     return (voices.length ? voices : loadVoices()).find((v) => v.voiceURI === uri) || null;
   }
 
+  // 한글 포함 여부 체크
+  function hasKorean(str) { return /[\uAC00-\uD7AF\u3130-\u318F]/.test(str); }
+
+  // 텍스트를 한국어/영어 청크로 분리
+  function splitByLang(text) {
+    // 연속된 한글+한글구두점 블록 vs 나머지(영어) 블록으로 나눔
+    const chunks = [];
+    const re = /([\uAC00-\uD7AF\u3130-\u318F\u1100-\u11FF][^\n]*?)(?=[A-Za-z"']|$)|([A-Za-z"'][\s\S]*?)(?=[\uAC00-\uD7AF\u3130-\u318F]|$)/g;
+    // 간단한 line-by-line 분리가 더 안정적
+    const lines = text.split('\n');
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      chunks.push({ text: trimmed, ko: hasKorean(trimmed) });
+    }
+    return chunks;
+  }
+
+  // 한국어 음성 찾기
+  function findKoreanVoice() {
+    const all = voices.length ? voices : loadVoices();
+    return all.find((v) => /^ko[-_]/i.test(v.lang)) || null;
+  }
+
   function speak(text, { voiceURI, rate = 1.0, pitch = 1.0 } = {}) {
     if (!synth || !text) return;
     cancel();
+
+    // 한국어가 섞여 있으면 줄 단위로 분리해 각각 적절한 음성으로 읽기
+    if (hasKorean(text)) {
+      const chunks = splitByLang(text);
+      const enVoice = findVoice(voiceURI);
+      const koVoice = findKoreanVoice();
+      for (const chunk of chunks) {
+        const u = new SpeechSynthesisUtterance(chunk.text);
+        if (chunk.ko && koVoice) {
+          u.voice = koVoice;
+          u.lang = koVoice.lang;
+        } else {
+          if (enVoice) u.voice = enVoice;
+          u.lang = enVoice?.lang || 'en-US';
+        }
+        u.rate = rate;
+        u.pitch = pitch;
+        synth.speak(u);
+      }
+      return;
+    }
+
+    // 영어만 있을 때 — 기존 로직
     const u = new SpeechSynthesisUtterance(text);
     const v = findVoice(voiceURI);
     if (v) u.voice = v;

@@ -5,7 +5,7 @@ import { loadProfile, saveProfile, resetProfile, DEFAULT_PROFILE } from './profi
 import { buildSystemPrompt, openingMessage } from './prompts.js';
 import { generate, testKey, GeminiError } from './gemini.js';
 import { Recognizer, tts, ttsClean } from './speech.js';
-import { BOOK, SEVEN_RULES, MP_FORMULA, FILLERS, CATEGORY_STRATEGY, COACHING_PATTERNS, IHU, HONEY_TIPS, OPENERS, TOPIC_VOCAB, ADDITIONAL_REFERENCES } from './bookRules.js';
+import { BOOK, SEVEN_RULES, MP_FORMULA, FILLERS, CATEGORY_STRATEGY, COACHING_PATTERNS, IHU, HONEY_TIPS, OPENERS, TOPIC_VOCAB, ADDITIONAL_REFERENCES, SMART } from './bookRules.js';
 import { GMP, CURRENT_WAR_EPISODES } from './gmpRules.js';
 
 // ---------- state ----------
@@ -53,6 +53,7 @@ const dom = {
   bookMeta: $('#book-meta'),
   sevenRules: $('#seven-rules'),
   mpFormula: $('#mp-formula'),
+  smartBlock: $('#smart-block'),
   fillerBlock: $('#filler-block'),
   categoryBlock: $('#category-block'),
   ihuBlock: $('#ihu-block'),
@@ -190,6 +191,19 @@ function renderBookView() {
       </ul>
     </li>
   `).join('');
+
+  dom.smartBlock.innerHTML = `
+    <div class="mp-steps">
+      ${SMART.steps.map((s) => `
+        <div class="mp-step">
+          <span class="mp-tag">${escapeHTML(s.letter)}</span>
+          <div class="mp-ko">${escapeHTML(s.en)}</div>
+          <div class="mp-en">${escapeHTML(s.ko)} <span class="muted">(${escapeHTML(s.tag)})</span></div>
+        </div>
+      `).join('')}
+    </div>
+    <p>${escapeHTML(SMART.rule)}</p>
+  `;
 
   dom.mpFormula.innerHTML = `
     <div class="mp-steps">

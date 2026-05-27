@@ -3,7 +3,7 @@
 // 일자별 룰 + 모드 스타일 + 사용자 TMI 까지 합쳐서 모델이 책 그대로 코칭하게 만든다.
 import * as storage from './storage.js';
 import { profileSummary } from './profile.js';
-import { SEVEN_RULES, MP_FORMULA, FILLERS, CATEGORY_STRATEGY, COACHING_PATTERNS, BOOK, IHU, HONEY_TIPS, ADDITIONAL_REFERENCES } from './bookRules.js';
+import { SEVEN_RULES, MP_FORMULA, FILLERS, CATEGORY_STRATEGY, COACHING_PATTERNS, BOOK, IHU, HONEY_TIPS, ADDITIONAL_REFERENCES, SMART } from './bookRules.js';
 import { gmpPromptBlock } from './gmpRules.js';
 
 function todayStr() {
@@ -34,6 +34,16 @@ function mpFormulaBlock() {
     `20초 룰: ${MP_FORMULA.rule_20s}`,
     `${MP_FORMULA.general_to_singular}`,
   ].filter(Boolean).join('\n');
+}
+
+function smartBlock() {
+  return [
+    `=== ${SMART.name} (오픽노잼) — 모든 답변의 뼈대 ===`,
+    ...SMART.steps.map((s) => `  [${s.letter}] ${s.en}\n      → ${s.ko} (${s.tag})`),
+    `핵심: ${SMART.rule}`,
+    '',
+    '피드백에서 학습자가 SMART 5단계 중 빠뜨린 단계가 있으면 "SMART [X] 빠짐" 식으로 지적해줘.',
+  ].join('\n');
 }
 
 function ihuBlock(mode) {
@@ -173,11 +183,14 @@ function customRefMaterialBlock() {
 
 const FEEDBACK_RULES = `
 === 피드백 포맷 (모든 답변 직후 — Mock Exam 모드 제외) ===
-사용자가 답변하면, 다음을 한 묶음으로 짧게 출력. 4줄 이내. 그 다음 바로 다음 질문.
+사용자가 답변하면, 다음을 한 묶음으로 짧게 출력. 5줄 이내. 그 다음 바로 다음 질문.
 
 ✅ <잘한 점 — 학습자의 실제 표현을 따옴표로 인용>
 🤖 <로봇 톤이나 책 7가지 규칙 위반 — 위반한 규칙 번호 명시. 없으면 이 줄 생략>
+📐 <SMART 체크 — 5단계(S·M·A·R·T) 중 빠뜨린 단계를 "[X] 빠짐"으로 지적. 전부 충족이면 "SMART 완성!" 한 마디>
 💡 <오픽노잼 스타일 한 줄 교정 — 책에서 가져온 권장 패턴으로>
+
+피드백 중 한국어 부분은 반드시 한국어로, 영어 교정/예시는 영어로 써. 피드백은 이 포맷을 항상 따르되, 자연스러운 코칭 어투로.
 
 Mock Exam 모드일 때는 매 답변 피드백 금지. "Question X of 7." 식으로만 진행하고, 7문항 끝난 후 한 번에 종합 디브리프.`;
 
@@ -230,6 +243,8 @@ export function buildSystemPrompt({ profile, day, mode }) {
     sevenRulesBlock(),
     '',
     mpFormulaBlock(),
+    '',
+    smartBlock(),
     '',
     fillerBlock(),
     '',

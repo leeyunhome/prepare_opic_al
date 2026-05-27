@@ -61,6 +61,21 @@ export const MP_FORMULA = {
   general_to_singular: 'General → Singular Control 전략: 일반 질문이 와도 답변에서는 "단 한 가지 구체 사례"로 좁혀 끝까지 끌고 가라.',
 };
 
+// SMART 전략 — 오픽노잼 (linktr.ee/opicnojam)
+// MP → 본론 → 결론의 3단 구조를 5단계로 세분화.
+// MP를 답변 안에서 3번 터치(S → A → T)하여 채점관에게 논리적 일관성을 확실히 어필.
+export const SMART = {
+  name: 'SMART 전략',
+  steps: [
+    { letter: 'S', en: 'Start by stating your main point/idea.', ko: 'MP를 먼저 던져라 — What/Feeling/Why', tag: 'MP' },
+    { letter: 'M', en: 'Mention a few related examples.', ko: '본론에서 구체 사례 1~2개 풀어가기', tag: '본론' },
+    { letter: 'A', en: 'Address why your main point is important by returning to it.', ko: 'MP로 다시 돌아와서 "왜 이게 중요한지" 강조', tag: 'MP 복귀' },
+    { letter: 'R', en: 'Reflect on what you\'ve learned or realized.', ko: '느낀 점 / 깨달은 점 한 줄', tag: '성찰' },
+    { letter: 'T', en: 'Tie everything back to your main point.', ko: 'MP로 마무리 — 결론을 MP에 묶어서 끝', tag: '결론' },
+  ],
+  rule: '답변 안에서 MP를 최소 3번 터치 (S에서 도입 → A에서 복귀 → T에서 마무리). 이 구조가 IH/AL에서 "논리적으로 말한다"는 인상을 확실히 줌.',
+};
+
 export const FILLERS = {
   basic: ['like', 'right', 'um', 'uh', 'you know', 'I mean'],
   advanced_combos: ['and so', 'and um', 'like, um', 'like, you know', 'you know, like', 'you know, um'],
