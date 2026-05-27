@@ -317,14 +317,58 @@ main {
 
 /* ---------- responsive ---------- */
 @media (max-width: 700px) {
-  .topbar { padding: 12px 14px; }
-  .brand h1 { font-size: 16px; }
-  .navtabs .navbtn { padding: 6px 10px; font-size: 13px; }
-  main { padding: 18px 14px 70px; }
-  .hero { padding: 20px; }
-  .hero h2 { font-size: 19px; }
-  .training-header { flex-direction: column; align-items: stretch; }
-  .day-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+  .topbar { flex-wrap: wrap; gap: 8px; padding: 10px 12px; }
+  .brand { gap: 8px; }
+  .brand .logo { font-size: 22px; }
+  .brand h1 { font-size: 15px; }
+  .brand .subtitle { font-size: 10px; }
+  .navtabs { width: 100%; justify-content: space-between; }
+  .navtabs .navbtn { padding: 6px 8px; font-size: 12px; }
+  .navbtn.icon { padding: 6px 7px; }
+
+  main { padding: 14px 10px 70px; }
+
+  .hero { padding: 16px; }
+  .hero h2 { font-size: 17px; }
+  .hero p { font-size: 13px; }
+  .book-chip { font-size: 11px; padding: 3px 8px; }
+  .btn.big { padding: 12px 16px; font-size: 14px; }
+
+  .day-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
+  .day-card { padding: 10px; }
+  .day-card .day-title { font-size: 13px; }
+
+  .training-header { flex-direction: column; align-items: stretch; gap: 10px; }
+  .training-header h2 { font-size: 17px; }
+  .mode-switch { flex-wrap: wrap; }
+
+  .chat { max-height: 45vh; min-height: 200px; padding: 12px; gap: 10px; }
+  .msg { max-width: 90%; font-size: 14px; padding: 8px 12px; }
+
+  .composer { padding: 10px; }
+  .composer-row { gap: 6px; }
+  .composer textarea { padding: 8px 10px; font-size: 14px; min-height: 42px; }
+  .btn.mic { width: 42px; height: 42px; font-size: 18px; }
+  .composer-footer { flex-wrap: wrap; gap: 8px; font-size: 11px; }
+
+  .card { padding: 14px; }
+  .card h3 { font-size: 14px; }
+  .form label { font-size: 12px; }
+  .form input, .form textarea { font-size: 14px; padding: 8px 10px; }
+
+  .history-item { flex-wrap: wrap; gap: 8px; padding: 10px; }
+  .hi-title { font-size: 13px; }
+
+  .exam-card { padding: 14px; }
+  .exam-card ul { font-size: 13px; }
+
+  /* Book view mobile */
+  .mp-steps { grid-template-columns: 1fr; }
+  .rule-list { padding-left: 16px; gap: 10px; }
+  #view-book code { font-size: 0.85em; word-break: break-all; }
+  .cat { padding: 10px; }
+}
+
 /* ---------- uploader & dropzone ---------- */
 .dropzone.dragover {
   background: rgba(106, 166, 255, 0.08) !important;

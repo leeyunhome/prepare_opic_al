@@ -24,6 +24,7 @@ export class Recognizer {
     this.silenceMs = silenceMs;
     this._silenceTimer = null;
     this.silenceTriggered = false;
+    this._manualStop = false;  // true when user explicitly pressed stop
     this.finalText = '';
     this.active = false;
 
@@ -42,11 +43,19 @@ export class Recognizer {
       this._scheduleSilenceCheck();
     };
     this.rec.onerror = (e) => {
+      const err = e.error || 'speech-error';
+      // "no-speech" and "aborted" are common on mobile — not fatal. Let auto-restart handle it.
+      if (err === 'no-speech' || err === 'aborted') return;
       this.active = false;
       this._clearSilenceTimer();
-      onError?.(e.error || 'speech-error');
+      onError?.(err);
     };
     this.rec.onend = () => {
+      // Mobile Chrome fires onend immediately when there's no speech (continuous mode bug).
+      // If the user didn't explicitly stop AND silence didn't trigger, auto-restart.
+      if (this.active && !this._manualStop && !this.silenceTriggered) {
+        try { this.rec.start(); return; } catch { /* fall through to normal end */ }
+      }
       this.active = false;
       this._clearSilenceTimer();
       onFinal?.(this.finalText.trim());
@@ -88,6 +97,7 @@ export class Recognizer {
     if (this.active) return;
     this.finalText = '';
     this.silenceTriggered = false;
+    this._manualStop = false;
     this._clearSilenceTimer();
     this.active = true;
     try {
@@ -98,11 +108,13 @@ export class Recognizer {
     }
   }
   stop() {
+    this._manualStop = true;   // 사용자가 명시적으로 중지 → onend에서 auto-restart 안 함
     this._clearSilenceTimer();
     if (this.unsupported || !this.active) return;
     try { this.rec.stop(); } catch {}
   }
   abort() {
+    this._manualStop = true;
     this._clearSilenceTimer();
     if (this.unsupported) return;
     try { this.rec.abort(); } catch {}
