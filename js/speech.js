@@ -1,34 +1,47 @@
 // Thin Web Speech API wrappers — STT (recognition) + TTS (synthesis).
-// STT only works in Chromium-based browsers reliably. TTS works everywhere
-// modern, voice list depends on the OS.
+// STT: Chrome desktop + mobile. Firefox/Safari는 STT 미지원.
 
 // ---------- STT ----------
-// silenceMs: 인식한 최종 텍스트가 있고 그 뒤로 N ms 동안 추가 발화가 없으면
-//   자동으로 stop()을 호출한다. 0 또는 falsy 값을 주면 자동 종료 비활성화 (수동 종료).
-// silenceTriggered: 자동 종료로 인해 멈춘 경우 true. onEnd 콜백에서 자동 전송 결정에 사용.
+// 모바일 Chrome은 continuous 모드가 불안정하다:
+//   - 음성 없이 수 초 지나면 onend 즉시 발동
+//   - "no-speech" onerror 후 onend 연쇄
+// 해결: continuous=false로 두고, 발화가 끝날 때마다 내부 자동 재시작.
+// silenceMs가 설정된 경우: 최종 텍스트가 있고 N ms 동안 추가 발화 없으면 세션 종료 + 자동 전송.
+
 export class Recognizer {
-  constructor({ lang = 'en-US', silenceMs = 1800, onPartial, onFinal, onError, onEnd } = {}) {
+  constructor({ lang = 'en-US', silenceMs = 1800, onPartial, onFinal, onError, onSessionEnd } = {}) {
     const Ctor = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!Ctor) {
       this.unsupported = true;
       return;
     }
     this.unsupported = false;
-    this.rec = new Ctor();
-    this.rec.lang = lang;
-    this.rec.interimResults = true;
-    this.rec.continuous = true;
-    this.rec.maxAlternatives = 1;
     this.lang = lang;
-
     this.silenceMs = silenceMs;
+
+    this._onPartial = onPartial;
+    this._onFinal = onFinal;
+    this._onError = onError;
+    this._onSessionEnd = onSessionEnd; // 진짜 세션 끝 (수동 stop 또는 silence 감지)
+
     this._silenceTimer = null;
     this.silenceTriggered = false;
-    this._manualStop = false;  // true when user explicitly pressed stop
+    this._wantRunning = false; // true면 계속 인식 세션을 유지하려는 상태
     this.finalText = '';
     this.active = false;
 
-    this.rec.onresult = (e) => {
+    this._rec = null;
+  }
+
+  _createRec() {
+    const Ctor = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const rec = new Ctor();
+    rec.lang = this.lang;
+    rec.interimResults = true;
+    rec.continuous = false;  // 핵심: false로 두고 수동 재시작
+    rec.maxAlternatives = 1;
+
+    rec.onresult = (e) => {
       let interim = '';
       for (let i = e.resultIndex; i < e.results.length; i++) {
         const r = e.results[i];
@@ -39,34 +52,46 @@ export class Recognizer {
         }
       }
       const combined = (this.finalText + (interim ? ' ' + interim : '')).trim();
-      onPartial?.(combined);
+      this._onPartial?.(combined);
       this._scheduleSilenceCheck();
     };
-    this.rec.onerror = (e) => {
+
+    rec.onerror = (e) => {
       const err = e.error || 'speech-error';
-      // "no-speech" and "aborted" are common on mobile — not fatal. Let auto-restart handle it.
+      // "no-speech" / "aborted" / "network" 같은 무해한 에러 → 무시하고 재시작에 맡김
       if (err === 'no-speech' || err === 'aborted') return;
+      // "not-allowed" = 마이크 권한 거부 → 진짜 에러
+      this._wantRunning = false;
       this.active = false;
       this._clearSilenceTimer();
-      onError?.(err);
+      this._onError?.(err);
     };
-    this.rec.onend = () => {
-      // Mobile Chrome fires onend immediately when there's no speech (continuous mode bug).
-      // If the user didn't explicitly stop AND silence didn't trigger, auto-restart.
-      if (this.active && !this._manualStop && !this.silenceTriggered) {
-        try { this.rec.start(); return; } catch { /* fall through to normal end */ }
+
+    rec.onend = () => {
+      // continuous=false이므로 발화 한 세그먼트 끝나면 항상 onend가 옴.
+      // _wantRunning이 true면 → 재시작 (사용자가 아직 말하는 중)
+      if (this._wantRunning && !this.silenceTriggered) {
+        try {
+          rec.start();
+          return;
+        } catch {
+          // 재시작 실패 — fall through to session end
+        }
       }
+      // 진짜 세션 종료
       this.active = false;
+      this._wantRunning = false;
       this._clearSilenceTimer();
-      onFinal?.(this.finalText.trim());
-      onEnd?.();
+      this._onFinal?.(this.finalText.trim());
+      this._onSessionEnd?.();
     };
+
+    return rec;
   }
 
   setLang(lang) {
     if (this.unsupported) return;
     this.lang = lang;
-    this.rec.lang = lang;
   }
 
   setSilenceMs(ms) {
@@ -84,40 +109,47 @@ export class Recognizer {
     if (!this.silenceMs) return;
     this._clearSilenceTimer();
     this._silenceTimer = setTimeout(() => {
-      // 자동 종료는 (1) 인식 중이고 (2) 최종 텍스트가 한 글자 이상일 때만 발동.
-      if (this.active && this.finalText.trim().length > 0) {
+      if (this._wantRunning && this.finalText.trim().length > 0) {
         this.silenceTriggered = true;
-        try { this.rec.stop(); } catch {}
+        this._wantRunning = false;
+        try { this._rec?.stop(); } catch {}
       }
     }, this.silenceMs);
   }
 
   start() {
     if (this.unsupported) throw new Error('이 브라우저는 음성 인식을 지원하지 않습니다. Chrome을 사용해주세요.');
-    if (this.active) return;
+    if (this._wantRunning) return;
+
     this.finalText = '';
     this.silenceTriggered = false;
-    this._manualStop = false;
     this._clearSilenceTimer();
+    this._wantRunning = true;
     this.active = true;
+
+    // 매번 새로 생성 — 모바일에서 이전 인스턴스 재사용 시 "already started" 에러 방지
+    this._rec = this._createRec();
     try {
-      this.rec.start();
+      this._rec.start();
     } catch (e) {
+      this._wantRunning = false;
       this.active = false;
       throw e;
     }
   }
+
   stop() {
-    this._manualStop = true;   // 사용자가 명시적으로 중지 → onend에서 auto-restart 안 함
+    this._wantRunning = false;
     this._clearSilenceTimer();
     if (this.unsupported || !this.active) return;
-    try { this.rec.stop(); } catch {}
+    try { this._rec?.stop(); } catch {}
   }
+
   abort() {
-    this._manualStop = true;
+    this._wantRunning = false;
     this._clearSilenceTimer();
     if (this.unsupported) return;
-    try { this.rec.abort(); } catch {}
+    try { this._rec?.abort(); } catch {}
     this.active = false;
   }
 }

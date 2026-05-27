@@ -585,14 +585,15 @@ function ensureRecognizer() {
     },
     onError: (err) => {
       setStatus(`STT error: ${err}`, 'error');
-      stopRecognizing();
+      resetMicUI();
     },
-    onEnd: () => {
-      // 자동(무음) 종료인지 수동 종료인지 구분.
+    // onSessionEnd: Recognizer 내부 재시작 루프가 끝나고 진짜 세션이 종료된 시점에만 호출됨.
+    // 수동 stop() 또는 silence 감지로 인한 종료.
+    onSessionEnd: () => {
       const auto = recognizer?.silenceTriggered;
       if (recognizer) recognizer.silenceTriggered = false;
-      stopRecognizing();
-      // 자동 종료였고 텍스트가 있으면 바로 전송.
+      resetMicUI();
+      // 무음 감지 자동 종료 → 바로 전송
       if (auto && state.autoSend && dom.textInput.value.trim()) {
         sendUserMessage(dom.textInput.value);
       }
@@ -625,13 +626,19 @@ function startRecognizing() {
   }
 }
 
-function stopRecognizing() {
-  if (recognizer) recognizer.stop();
+// UI만 리셋 — Recognizer.stop()은 호출하지 않음 (이미 끝난 상태에서 불필요한 이중 호출 방지)
+function resetMicUI() {
   state.recognizing = false;
   dom.micBtn.classList.remove('recording');
   dom.micBtn.textContent = '🎤';
   stopTimer();
   setStatus('');
+}
+
+// 사용자가 명시적으로 마이크 끄기
+function stopRecognizing() {
+  if (recognizer) recognizer.stop();
+  resetMicUI();
 }
 
 dom.micBtn.addEventListener('click', () => {
