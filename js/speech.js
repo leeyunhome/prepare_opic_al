@@ -1,44 +1,41 @@
 // Thin Web Speech API wrappers — STT (recognition) + TTS (synthesis).
-// STT: Chrome desktop + mobile. Firefox/Safari는 STT 미지원.
+// STT: Chrome desktop + mobile Chrome. Firefox/Safari는 STT 미지원.
 
 // ---------- STT ----------
-// 모바일 Chrome은 continuous 모드가 불안정하다:
-//   - 음성 없이 수 초 지나면 onend 즉시 발동
-//   - "no-speech" onerror 후 onend 연쇄
-// 해결: continuous=false로 두고, 발화가 끝날 때마다 내부 자동 재시작.
-// silenceMs가 설정된 경우: 최종 텍스트가 있고 N ms 동안 추가 발화 없으면 세션 종료 + 자동 전송.
+// 모바일 Chrome STT 핵심 문제와 해결:
+//   1) continuous=true여도 몇 초 무음이면 onend 발동 (모바일 버그)
+//   2) continuous=false면 발화 한 번 후 자동 종료, 재시작 시 유저 제스처 필요
+//   해결: continuous=true + onend에서 200ms 후 새 인스턴스로 자동 재개.
+//         _wantRunning 플래그로 "세션 지속 의도"를 관리.
 
 export class Recognizer {
   constructor({ lang = 'en-US', silenceMs = 1800, onPartial, onFinal, onError, onSessionEnd } = {}) {
     const Ctor = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!Ctor) {
-      this.unsupported = true;
-      return;
-    }
+    if (!Ctor) { this.unsupported = true; return; }
     this.unsupported = false;
+    this._Ctor = Ctor;
     this.lang = lang;
     this.silenceMs = silenceMs;
 
     this._onPartial = onPartial;
     this._onFinal = onFinal;
     this._onError = onError;
-    this._onSessionEnd = onSessionEnd; // 진짜 세션 끝 (수동 stop 또는 silence 감지)
+    this._onSessionEnd = onSessionEnd;
 
     this._silenceTimer = null;
+    this._restartTimer = null;
     this.silenceTriggered = false;
-    this._wantRunning = false; // true면 계속 인식 세션을 유지하려는 상태
+    this._wantRunning = false;
     this.finalText = '';
     this.active = false;
-
     this._rec = null;
   }
 
-  _createRec() {
-    const Ctor = window.SpeechRecognition || window.webkitSpeechRecognition;
-    const rec = new Ctor();
+  _makeRec() {
+    const rec = new this._Ctor();
     rec.lang = this.lang;
     rec.interimResults = true;
-    rec.continuous = false;  // 핵심: false로 두고 수동 재시작
+    rec.continuous = true;       // continuous=true가 데스크톱에서 가장 안정적
     rec.maxAlternatives = 1;
 
     rec.onresult = (e) => {
@@ -53,61 +50,63 @@ export class Recognizer {
       }
       const combined = (this.finalText + (interim ? ' ' + interim : '')).trim();
       this._onPartial?.(combined);
-      this._scheduleSilenceCheck();
+      this._scheduleSilence();
     };
 
     rec.onerror = (e) => {
-      const err = e.error || 'speech-error';
-      // "no-speech" / "aborted" / "network" 같은 무해한 에러 → 무시하고 재시작에 맡김
-      if (err === 'no-speech' || err === 'aborted') return;
-      // "not-allowed" = 마이크 권한 거부 → 진짜 에러
-      this._wantRunning = false;
-      this.active = false;
-      this._clearSilenceTimer();
+      const err = e.error || 'unknown';
+      // 모바일에서 빈번한 무해한 에러 — 무시, 자동 재개에 맡김
+      if (err === 'no-speech' || err === 'aborted' || err === 'network') return;
+      // 진짜 에러 (not-allowed 등)
+      this._kill();
       this._onError?.(err);
     };
 
     rec.onend = () => {
-      // continuous=false이므로 발화 한 세그먼트 끝나면 항상 onend가 옴.
-      // _wantRunning이 true면 → 재시작 (사용자가 아직 말하는 중)
+      // continuous=true여도 모바일 Chrome은 여기로 옴.
+      // _wantRunning이면 세션을 이어가야 하므로 잠시 후 새 인스턴스로 재개.
       if (this._wantRunning && !this.silenceTriggered) {
-        try {
-          rec.start();
-          return;
-        } catch {
-          // 재시작 실패 — fall through to session end
-        }
+        this._restartTimer = setTimeout(() => {
+          if (!this._wantRunning) return;
+          try {
+            this._rec = this._makeRec();
+            this._rec.start();
+          } catch {
+            this._endSession();
+          }
+        }, 200); // 모바일 안정화 딜레이
+        return;
       }
-      // 진짜 세션 종료
-      this.active = false;
-      this._wantRunning = false;
-      this._clearSilenceTimer();
-      this._onFinal?.(this.finalText.trim());
-      this._onSessionEnd?.();
+      this._endSession();
     };
 
     return rec;
   }
 
-  setLang(lang) {
-    if (this.unsupported) return;
-    this.lang = lang;
+  _endSession() {
+    this.active = false;
+    this._wantRunning = false;
+    this._clearTimers();
+    this._onFinal?.(this.finalText.trim());
+    this._onSessionEnd?.();
   }
 
-  setSilenceMs(ms) {
-    this.silenceMs = +ms || 0;
+  _kill() {
+    this._wantRunning = false;
+    this.active = false;
+    this._clearTimers();
+    try { this._rec?.stop(); } catch {}
+    this._rec = null;
   }
 
-  _clearSilenceTimer() {
-    if (this._silenceTimer) {
-      clearTimeout(this._silenceTimer);
-      this._silenceTimer = null;
-    }
+  _clearTimers() {
+    if (this._silenceTimer) { clearTimeout(this._silenceTimer); this._silenceTimer = null; }
+    if (this._restartTimer) { clearTimeout(this._restartTimer); this._restartTimer = null; }
   }
 
-  _scheduleSilenceCheck() {
+  _scheduleSilence() {
     if (!this.silenceMs) return;
-    this._clearSilenceTimer();
+    if (this._silenceTimer) clearTimeout(this._silenceTimer);
     this._silenceTimer = setTimeout(() => {
       if (this._wantRunning && this.finalText.trim().length > 0) {
         this.silenceTriggered = true;
@@ -117,18 +116,20 @@ export class Recognizer {
     }, this.silenceMs);
   }
 
+  setLang(lang) { this.lang = lang; }
+  setSilenceMs(ms) { this.silenceMs = +ms || 0; }
+
   start() {
     if (this.unsupported) throw new Error('이 브라우저는 음성 인식을 지원하지 않습니다. Chrome을 사용해주세요.');
     if (this._wantRunning) return;
 
     this.finalText = '';
     this.silenceTriggered = false;
-    this._clearSilenceTimer();
+    this._clearTimers();
     this._wantRunning = true;
     this.active = true;
 
-    // 매번 새로 생성 — 모바일에서 이전 인스턴스 재사용 시 "already started" 에러 방지
-    this._rec = this._createRec();
+    this._rec = this._makeRec();
     try {
       this._rec.start();
     } catch (e) {
@@ -140,17 +141,14 @@ export class Recognizer {
 
   stop() {
     this._wantRunning = false;
-    this._clearSilenceTimer();
+    this._clearTimers();
     if (this.unsupported || !this.active) return;
     try { this._rec?.stop(); } catch {}
+    // onend가 발동되어 _endSession()으로 흘러감
   }
 
   abort() {
-    this._wantRunning = false;
-    this._clearSilenceTimer();
-    if (this.unsupported) return;
-    try { this._rec?.abort(); } catch {}
-    this.active = false;
+    this._kill();
   }
 }
 
@@ -177,25 +175,8 @@ export const tts = (() => {
     return (voices.length ? voices : loadVoices()).find((v) => v.voiceURI === uri) || null;
   }
 
-  // 한글 포함 여부 체크
   function hasKorean(str) { return /[\uAC00-\uD7AF\u3130-\u318F]/.test(str); }
 
-  // 텍스트를 한국어/영어 청크로 분리
-  function splitByLang(text) {
-    // 연속된 한글+한글구두점 블록 vs 나머지(영어) 블록으로 나눔
-    const chunks = [];
-    const re = /([\uAC00-\uD7AF\u3130-\u318F\u1100-\u11FF][^\n]*?)(?=[A-Za-z"']|$)|([A-Za-z"'][\s\S]*?)(?=[\uAC00-\uD7AF\u3130-\u318F]|$)/g;
-    // 간단한 line-by-line 분리가 더 안정적
-    const lines = text.split('\n');
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed) continue;
-      chunks.push({ text: trimmed, ko: hasKorean(trimmed) });
-    }
-    return chunks;
-  }
-
-  // 한국어 음성 찾기
   function findKoreanVoice() {
     const all = voices.length ? voices : loadVoices();
     return all.find((v) => /^ko[-_]/i.test(v.lang)) || null;
@@ -205,14 +186,13 @@ export const tts = (() => {
     if (!synth || !text) return;
     cancel();
 
-    // 한국어가 섞여 있으면 줄 단위로 분리해 각각 적절한 음성으로 읽기
     if (hasKorean(text)) {
-      const chunks = splitByLang(text);
+      const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
       const enVoice = findVoice(voiceURI);
       const koVoice = findKoreanVoice();
-      for (const chunk of chunks) {
-        const u = new SpeechSynthesisUtterance(chunk.text);
-        if (chunk.ko && koVoice) {
+      for (const line of lines) {
+        const u = new SpeechSynthesisUtterance(line);
+        if (hasKorean(line) && koVoice) {
           u.voice = koVoice;
           u.lang = koVoice.lang;
         } else {
@@ -226,7 +206,6 @@ export const tts = (() => {
       return;
     }
 
-    // 영어만 있을 때 — 기존 로직
     const u = new SpeechSynthesisUtterance(text);
     const v = findVoice(voiceURI);
     if (v) u.voice = v;
@@ -244,17 +223,15 @@ export const tts = (() => {
   return { listEnglishVoices, loadVoices, speak, cancel };
 })();
 
-// Strip markdown / emoji-only feedback lines so TTS doesn't read "asterisk
-// asterisk bold". Keep the human-readable bits.
 export function ttsClean(text) {
   if (!text) return '';
   return text
-    .replace(/```[\s\S]*?```/g, ' ')       // code fences
-    .replace(/`([^`]+)`/g, '$1')           // inline code
-    .replace(/\*\*([^*]+)\*\*/g, '$1')     // bold
-    .replace(/\*([^*]+)\*/g, '$1')         // italic
-    .replace(/\[keywords:[^\]]*\]/gi, '')  // keyword hints
-    .replace(/^\s*[-•]\s*/gm, '')          // bullets
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/\[keywords:[^\]]*\]/gi, '')
+    .replace(/^\s*[-•]\s*/gm, '')
     .replace(/\s+/g, ' ')
     .trim();
 }
